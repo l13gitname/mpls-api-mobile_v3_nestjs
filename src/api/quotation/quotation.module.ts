@@ -17,7 +17,7 @@ import { ConfigModule } from '@nestjs/config';
     providers: [
         QuotationService,
         DbService,
-        UtilityService
+        UtilityService,
     ]
 })
 export class QuotationModule { }

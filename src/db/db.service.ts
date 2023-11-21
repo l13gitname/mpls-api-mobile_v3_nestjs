@@ -5,7 +5,7 @@ import * as oracledb from 'oracledb';
 export class DbService {
 
     constructor(
-        private configService: ConfigService
+        private configService: ConfigService,
     ) {
         /*.... intialize variable here ...*/
     }
@@ -14,12 +14,37 @@ export class DbService {
         try {
 
             /*... call oracledb init on oracledb ...*/
-            oracledb.initOracleClient()
-            const dbconnect = await oracledb.getConnection({
+            let connectdb = oracledb
+            connectdb.initOracleClient()
+            connectdb.fetchAsString = []
+
+            const dbconnect = await connectdb.getConnection({
                 user: this.configService.get<string>('DB_APIUSER'),
                 password: this.configService.get<string>('DB_PASSWORD'),
                 connectionString: this.configService.get<string>('DB_CONNECTSTR')
             });
+            return [dbconnect, null];
+        } catch (e) {
+            return [null, e]
+        }
+    }
+
+    async ConnectionDBbuffer(): Promise<[oracledb.Connection, oracledb.DBError]> {
+        try {
+
+            /*... call oracledb init on oracledb ...*/
+            let connectdb = oracledb
+            connectdb.initOracleClient()
+            connectdb.fetchAsBuffer = [oracledb.BLOB]
+
+
+            const dbconnect = await connectdb.getConnection({
+                user: this.configService.get<string>('DB_APIUSER'),
+                password: this.configService.get<string>('DB_PASSWORD'),
+                connectionString: this.configService.get<string>('DB_CONNECTSTR')
+
+            });
+
             return [dbconnect, null];
         } catch (e) {
             return [null, e]
@@ -55,7 +80,8 @@ export class DbService {
                     }
                 }
             }
-        } catch (e) {0
+        } catch (e) {
+            0
             throw new Error(`Error executing query: ${e.message}`);
         } finally {
             if (dbconnect) {

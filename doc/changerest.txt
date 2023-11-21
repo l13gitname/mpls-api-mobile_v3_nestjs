@@ -1,0 +1,3 @@
+MPLS_update_phone_number (get) => (post)
+MPLS_check_application_no (get) => (post)
+MPLS_validation_otp_econsent_non (get) => (post)

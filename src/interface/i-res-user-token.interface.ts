@@ -7,6 +7,7 @@ export interface IResUserToken {
     last_name: string;
     expire_date: string;
     email: string;
+    channal: string;
     iat: number;
 }
 

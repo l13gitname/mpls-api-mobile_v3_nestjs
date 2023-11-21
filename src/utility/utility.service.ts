@@ -1,5 +1,6 @@
 import { IUtilReqObjtoparams } from '../interface/i-util-req-objtoparams.interface';
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
 
 @Injectable()
 export class UtilityService {
@@ -56,5 +57,11 @@ export class UtilityService {
             return data
         }
 
+    }
+
+
+    /* .... image handle ... */
+    imagetobuffer(file: Express.Multer.File) {
+        return fs.readFileSync(file.path)
     }
 }

@@ -12,6 +12,8 @@ import { QuotationModule } from './api/quotation/quotation.module';
 import { QuotationService } from './api/quotation/quotation.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { FirstPartyApiMultipleModule } from './api/1stparty/multiple/first-party-api-multiple.module';
+import { SandboxModule } from './api/sandbox/sandbox.module';
+import { SandboxService } from './api/sandbox/sandbox.service';
 
 @Module({
   imports: [
@@ -25,14 +27,16 @@ import { FirstPartyApiMultipleModule } from './api/1stparty/multiple/first-party
     MasterdataModule,
     FirstPartyApiModule,
     FirstPartyApiMultipleModule,
-    QuotationModule
+    QuotationModule,
+    SandboxModule
   ],
   controllers: [AppController],
   providers: [
     AppService,
     DbService,
     UtilityService,
-    QuotationService
+    QuotationService,
+    SandboxService
   ],
 })
-export class AppModule {}
+export class AppModule { }

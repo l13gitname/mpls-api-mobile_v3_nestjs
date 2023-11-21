@@ -135,6 +135,13 @@ export class MasterdataController {
         return this.masterdataService.getmastermodel_btw(req, res, next)
     }
 
+    @Get('/MPLS_getmodel')
+    async MPLS_getmodel(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
+        return this.masterdataService.MPLS_getmodel(req, res, next)
+    }
+
+    //
+
     @Post('/querybasicexecute')
     @ApiBody({ type: Ireqbasicexecute })
     async querybasicexecute(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {

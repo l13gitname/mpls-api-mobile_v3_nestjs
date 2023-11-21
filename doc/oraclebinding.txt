@@ -1,0 +1,3 @@
+/* ... oracle.BIND_OUT = 3003 ...*/
+/* ... oracle.STRING = 2001 ...*/
+/* ... oracle.OBJECT = 4002 ...*/

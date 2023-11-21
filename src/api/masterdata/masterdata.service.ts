@@ -234,6 +234,18 @@ export class MasterdataService {
         }
     }
 
+
+    async MPLS_getmodel(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
+
+        const strsql = ` SELECT B.BRAND_NAME, B.BRAND_CODE, P.MODEL_CODE,P.MODEL, P.PRICE,
+        P.ENGINE_NO, P.ENGINE_NO_RUNNING, P.CHASSIS_NO, P.CHASSIS_NO_RUNNING, 
+        P.MODEL_YEAR, P.CC ,P.MOTOR, P.MOTOR_NUMBER, P.BATTERY_TYPE, P.BATTERY_CAPACITY, P.FUEL_TYPE
+        FROM  BTW.X_MODEL_P  P,BTW.X_BRAND_P B
+        WHERE P.BRAND_CODE= B.BRAND_CODE
+        AND   P.PRO_CODE = '01' `
+        return await this.basicexecute(req, res, strsql)
+    }
+
     async basicexecute(@Req() req: Request, @Res() res: Response, executequery: string) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
