@@ -14,6 +14,12 @@ import { MulterModule } from '@nestjs/platform-express';
 import { FirstPartyApiMultipleModule } from './api/1stparty/multiple/first-party-api-multiple.module';
 import { SandboxModule } from './api/sandbox/sandbox.module';
 import { SandboxService } from './api/sandbox/sandbox.service';
+import { DipchipModule } from './api/dipchip/dipchip.module';
+import { EConsentModule } from './api/e-consent/e-consent.module';
+import { CalculateModule } from './api/calculate/calculate.module';
+import { MrtaModule } from './api/mrta/mrta.module';
+import { ApproveDeliverModule } from './api/approve-deliver/approve-deliver.module';
+import { SmsModule } from './api/sms/sms.module';
 
 @Module({
   imports: [
@@ -28,6 +34,12 @@ import { SandboxService } from './api/sandbox/sandbox.service';
     FirstPartyApiModule,
     FirstPartyApiMultipleModule,
     QuotationModule,
+    DipchipModule,
+    EConsentModule,
+    ApproveDeliverModule,
+    CalculateModule,
+    MrtaModule,
+    SmsModule,
     SandboxModule
   ],
   controllers: [AppController],
@@ -36,6 +48,12 @@ import { SandboxService } from './api/sandbox/sandbox.service';
     DbService,
     UtilityService,
     QuotationService,
+    DipchipModule,
+    EConsentModule,
+    ApproveDeliverModule,
+    CalculateModule,
+    MrtaModule,
+    SmsModule,
     SandboxService
   ],
 })

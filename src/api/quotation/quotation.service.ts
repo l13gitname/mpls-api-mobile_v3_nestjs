@@ -4,7 +4,7 @@ import { Body, Injectable, Next, Req, Res, UploadedFiles } from '@nestjs/common'
 import { NextFunction, Request, Response } from 'express';
 import { User } from '../decorator/user.decorator';
 import { IResUserToken } from 'src/interface/i-res-user-token.interface';
-import { IResGetquotationbyidData } from '../../interface/quotation/getquotationbyid/i-res-getquotationbyid';
+import { IResGetquotationbyid, IResGetquotationbyidData } from '../../interface/quotation/getquotationbyid/i-res-getquotationbyid';
 import { IReqGetquotationlist } from 'src/interface/quotation/getquotationlist/i-req-getquotationlist.interface';
 import { IResRowcount } from 'src/interface/main/i-res-rowcount.interface';
 import { IResGetquotationlist, IResGetquotationlistData } from 'src/interface/quotation/getquotationlist/i-res-getquotationlist';
@@ -29,7 +29,6 @@ import { IExecChkquotation } from 'src/interface/quotation/MPLS_check_secondhand
 import { IExecCheckvalidsecondhandcar } from 'src/interface/quotation/MPLS_check_secondhand_car_image_attach/i-exec-checkvalidsecondhandcar';
 import { IResMplsCheckSecondhandCarImageAttach, IResMplsCheckSecondhandCarImageAttachData } from 'src/interface/quotation/MPLS_check_secondhand_car_image_attach/i-res-mpls_check_secondhand_car_image_attach';
 import { IReqMplsCreateOrUpdateCredit } from 'src/interface/quotation/MPLS_create_or_update_credit/i-req-mpls_create_or_update_credit';
-import * as moment from 'moment';
 import { IExecCheckquotationexec } from 'src/interface/quotation/MPLS_create_or_update_credit/i-exec-checkquotationexec';
 import { IExecChkcredit } from 'src/interface/quotation/MPLS_create_or_update_credit/i-exec-chkcredit';
 import { IExecChecksecondhandcaractiveexec } from 'src/interface/quotation/MPLS_create_or_update_credit/i-exec-checksecondhandcaractiveexec.interface';
@@ -41,6 +40,10 @@ import { IExecChkdupcareer } from 'src/interface/quotation/MPLS_create_or_update
 import { IExecChkduppurpose } from 'src/interface/quotation/MPLS_create_or_update_careerandpurpose/i-exec-chkduppurpose';
 import { IExecChkquotationcareer } from 'src/interface/quotation/MPLS_create_or_update_careerandpurpose/i-exec-chkquotationcareer';
 import { IReqMplsCreateConsent } from 'src/interface/quotation/MPLS_create_consent/i-req-mpls_create_consent';
+import * as moment from 'moment';
+import { IResGetinsurancedetailbyid, IResGetinsurancedetailbyidData } from 'src/interface/quotation/getinsurancedetailbyid/i-res-getinsurancedetailbyid';
+import { IReqBypasssignature } from 'src/interface/quotation/bypasssignature/i-req-bypasssignature';
+import { IExecChkloanresultstatus } from 'src/interface/quotation/bypasssignature/i-exec-chkloanresultstatus.interface';
 @Injectable()
 export class QuotationService {
     constructor(
@@ -55,7 +58,7 @@ export class QuotationService {
     async getquotationlist(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -255,7 +258,7 @@ export class QuotationService {
                                 returnData.pagecount = Math.ceil(rowCount / 10);
 
                                 try {
-                                    /*.... finish ...*/
+                                    /*.... Finish ... */
                                     res.status(200).json(returnData);
                                     /*... api process finish (success) ...*/
                                 } catch (e) {
@@ -318,7 +321,7 @@ export class QuotationService {
     async MPLS_canclequotation(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -391,9 +394,9 @@ export class QuotationService {
                                     `, {
 
                                         /* ... BIND_IN  = 3001, BIND_OUT = 3003, STRING = 2001 ...*/
-                                        quotaitonid: { dir: 3001, type: 2001, val: quotationid },
-                                        userid: { dir: 3001, type: 2001, val: userid },
-                                        status: { dir: 3003, type: 2001 }
+                                        quotaitonid: { dir: 3001, type: oracledb.STRING, val: quotationid },
+                                        userid: { dir: 3001, type: oracledb.STRING, val: userid },
+                                        status: { dir: 3003, type: oracledb.STRING }
 
                                     })
 
@@ -538,8 +541,12 @@ export class QuotationService {
         }
     }
 
+
+    /* .... quotation-tab ... */
+
     /* ... quotation-detail-page ...*/
 
+    /* ... recheck with image field (cizcard_image, econsent_image) ... */
     async getquotationbyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
@@ -553,214 +560,266 @@ export class QuotationService {
 
                 if (dbconnect[0]) {
 
-                    if (!userid) {
-                        return res.status(500).send({
-                            status: 500,
-                            message: `ไม่มีค่า user id สำหรับยืนยันตน`
-                        })
-                    }
+                    /* ... check userid from jwt token ...*/
+                    if (userid) {
 
-                    if (!quotationid) {
-                        return res.status(500).send({
-                            status: 500,
-                            message: `ไม่มีค่า quotationid`,
-                            data: []
-                        })
-                    }
+                        /* ... check paramter quotationid ...*/
+                        if (quotationid) {
 
-                    const results = await dbconnect[0].execute(`
-                                SELECT QU.*, 
-                                CTP.APP_KEY_ID AS CTP_APP_KEY_ID,
-                                CTP.ADDRESS AS CTP_ADDRESS,
-                                CTP.SUB_DISTRICT AS CTP_SUB_DISTRICT,
-                                CTP.DISTRICT AS CTP_DISTRICT,
-                                CTP.PROVINCE_NAME AS CTP_PROVINCE_NAME,
-                                CTP.PROVINCE_CODE AS CTP_PROVINCE_CODE,
-                                CTP.POSTAL_CODE AS CTP_POSTAL_CODE,
-                                HRP.APP_KEY_ID AS HRP_APP_KEY_ID,
-                                HRP.ADDRESS AS HRP_ADDRESS,
-                                HRP.SUB_DISTRICT AS HRP_SUB_DISTRICT,
-                                HRP.DISTRICT AS HRP_DISTRICT,
-                                HRP.PROVINCE_NAME AS HRP_PROVINCE_NAME,
-                                HRP.PROVINCE_CODE AS HRP_PROVINCE_CODE,
-                                HRP.POSTAL_CODE AS HRP_POSTAL_CODE,
-                                LVP.APP_KEY_ID AS LVP_APP_KEY_ID,
-                                LVP.ADDRESS AS LVP_ADDRESS,
-                                LVP.SUB_DISTRICT AS LVP_SUB_DISTRICT,
-                                LVP.DISTRICT AS LVP_DISTRICT,
-                                LVP.PROVINCE_NAME AS LVP_PROVINCE_NAME,
-                                LVP.PROVINCE_CODE AS LVP_PROVINCE_CODE,
-                                LVP.POSTAL_CODE AS LVP_POSTAL_CODE,
-                                LVP.LATITUDE AS LVP_LATITUDE,   
-                                LVP.LONDTIUDE AS LVP_LONDTIUDE,
-                                LVP.LALON AS LVP_LALON,
-                                WP.APP_KEY_ID AS WP_APP_KEY_ID,
-                                WP.ADDRESS AS WP_ADDRESS,
-                                WP.SUB_DISTRICT AS WP_SUB_DISTRICT,
-                                WP.DISTRICT AS WP_DISTRICT,
-                                WP.PROVINCE_NAME AS WP_PROVINCE_NAME,
-                                WP.PROVINCE_CODE AS WP_PROVINCE_CODE,
-                                WP.POSTAL_CODE AS WP_POSTAL_CODE, 
-                                WP.DESCRIPTION AS WP_DESCRIPTION, 
-                                CD.APP_KEY_ID AS CD_APP_KEY_ID, 
-                                CD.BRAND_CODE AS CD_BRAND_CODE, 
-                                CD.BRAND_NAME AS CD_BRAND_NAME, 
-                                CD.STATUS AS CD_STATUS, 
-                                CD.MODEL_CODE AS CD_MODEL_CODE, 
-                                CD.MODEL_NAME AS CD_MODEL_NAME, 
-                                CD.MOTO_YEAR AS CD_MOTO_YEAR, 
-                                CD.COLOR_CODE AS CD_COLOR_CODE, 
-                                CD.COLOR_NAME AS CD_COLOR_NAME, 
-                                CD.LOAN_AMOUNT AS CD_LOAN_AMOUNT, 
-                                CD.PRODUCT_VALUE AS CD_PRODUCTVALUE, 
-                                CD.INTEREST_RATE AS CD_INTEREST_RATE, 
-                                CD.PAYMENT_VALUE AS CD_PAYMENT_VALUE, 
-                                CD.PAYMENT_ROUND_COUNT AS CD_PAYMENT_ROUND_COUNT, 
-                                CD.DOWN_PAYMENT AS CD_DOWN_PAYMENT,
-                                CD.INSURER_CODE AS CD_INSURER_CODE,
-                                CD.INSURER_NAME AS CD_INSURER_NAME,
-                                CD.INSURANCE_CODE AS CD_INSURANCE_CODE,
-                                CD.INSURANCE_NAME AS CD_INSURANCE_NAME,
-                                CD.INSURANCE_YEAR AS CD_INSURANCE_YEAR,
-                                CD.INSURANCE_PLAN_PRICE AS CD_INSURANCE_PLAN_PRICE,
-                                CD.IS_INCLUDE_LOANAMOUNT AS CD_IS_INCLUDE_LOANAMOUNT,
-                                CD.FACTORY_PRICE AS CD_FACTORY_PRICE,
-                                CD.SIZE_MODEL AS CD_SIZE_MODEL,
-                                CD.COVERAGE_TOTAL_LOSS AS CD_COVERAGE_TOTAL_LOSS,
-                                CD.MAX_LTV AS CD_MAX_LTV,
-                                CD.PRICE_INCLUDE_VAT AS CD_PRICE_INCLUDE_VAT,
-                                CD.ENGINE_NUMBER AS CD_ENGINE_NUMBER,
-                                CD.CHASSIS_NUMBER AS CD_CHASSIS_NUMBER,
-                                CD.ENGINE_NO_RUNNING AS CD_ENGINE_NO_RUNNING,
-                                CD.CHASSIS_NO_RUNNING AS CD_CHASSIS_NO_RUNNING,
-                                (CD.LOAN_AMOUNT + CD.INSURANCE_PLAN_PRICE) AS CD_NET_FINANCE,
-                                CD.BUSSINESS_CODE AS CD_BUSSINESS_CODE,
-                                CD.BUSSINESS_NAME AS CD_BUSSINESS_NAME,
-                                CD.MODEL_YEAR AS CD_MODEL_YEAR,
-                                CD.CC AS CD_CC, 
-                                CD.GRADE AS CD_GRADE, 
-                                CD.IS_OVER_MAX_LTV AS CD_IS_OVER_MAX_LTV, 
-                                CD.OVER_MAX_LTV_REASON AS CD_OVER_MAX_LTV_REASON, 
-                                CD.REG_NO AS CD_REG_NO,
-                                CD.GRADE AS CD_GRADE, 
-                                CD.REG_DATE AS CD_REG_DATE,
-                                CD.CONTRACT_REF AS CD_CONTRACT_REF,
-                                CD.REG_MILE AS CD_REG_MILE,
-                                CD.PROV_CODE AS CD_PROV_CODE,
-                                CD.PROV_NAME AS CD_PROV_NAME,
-                                CR.APP_KEY_ID AS CR_APP_KEY_ID,
-                                CR.MAIN_CAREER_NAME AS CR_MAIN_CAREER_NAME,
-                                CR.MAIN_CAREER_CODE AS CR_MAIN_CAREER_CODE,
-                                CR.MAIN_WORKPLACE_NAME AS CR_MAIN_WORKPLACE_NAME,
-                                CR.MAIN_POSITION AS CR_MAIN_POSITION,
-                                CR.MAIN_DEPARTMENT AS CR_MAIN_DEPARTMENT,
-                                CR.MAIN_EXPERIENCE_YEAR AS CR_MAIN_EXPERIENCE_YEAR,
-                                CR.MAIN_EXPERIENCE_MONTH AS CR_MAIN_EXPERIENCE_MONTH,
-                                CR.MAIN_SALARY_PER_MONTH AS CR_MAIN_SALARY_PER_MONTH,
-                                CR.MAIN_SALARY_PER_DAY AS CR_MAIN_SALARY_PER_DAY,
-                                CR.MAIN_LEADER_NAME AS CR_MAIN_LEADER_NAME,
-                                CR.MAIN_WORK_PER_WEEK AS CR_MAIN_WORK_PER_WEEK, 
-                                CR.MAIN_WORKPLACE_PHONE_NO_1 AS CR_MAIN_WORKPLACE_PHONE_NO_1, 
-                                CR.MAIN_WORKPLACE_PHONE_NO_2 AS CR_MAIN_WORKPLACE_PHONE_NO_2, 
-                                CR.IS_SUB_CAREER AS CR_IS_SUB_CAREER,
-                                CR.SUB_CAREER_NAME AS CR_SUB_CAREER_NAME,
-                                CR.SUB_CAREER_CODE AS CR_SUB_CAREER_CODE,
-                                CR.SUB_WORKPLACE_NAME AS CR_SUB_WORKPLACE_NAME,
-                                CR.SUB_POSITION AS CR_SUB_POSITION,
-                                CR.SUB_DEPARTMENT AS CR_SUB_DEPARTMENT,
-                                CR.SUB_EXPERIENCE_YEAR AS CR_SUB_EXPERIENCE_YEAR,
-                                CR.SUB_EXPERIENCE_MONTH AS CR_SUB_EXPERIENCE_MONTH,
-                                CR.SUB_SALARY_PER_MONTH AS CR_SUB_SALARY_PER_MONTH,
-                                CR.SUB_SALARY_PER_DAY AS CR_SUB_SALARY_PER_DAY,
-                                CR.SUB_LEADER_NAME AS CR_SUB_LEADER_NAME,
-                                CR.SUB_WORK_PER_WEEK AS CR_SUB_WORK_PER_WEEK,
-                                CS.APP_KEY_ID AS CS_APP_KEY_ID,
-                                CS.CUSTOMER_NAME AS CS_CUSTOMER_NAME,
-                                CS.FIRST_NAME AS CS_FIRST_NAME,
-                                CS.LAST_NAME AS CS_LAST_NAME,
-                                CS.IS_CREDIT_CONSENT AS CS_IS_CREDIT_CONSENT,
-                                CS.IS_FINAL_CONSENT AS CS_IS_FINAL_CONSENT,
-                                CS.IS_DISCLOSURE_CONSENT AS CS_IS_DISCLOSURE_CONSENT,
-                                CS.IS_PERSONAL_DISCLOSURE_CONSENT AS CS_IS_PERSONAL_DISCLOSURE,
-                                CS.SIGNATURE_IMAGE AS CS_SIGNATURE_IMAGE,
-                                CS.WITNESS_IMAGE AS CS_WITNESS_IMAGE,
-                                CS.IDENTITY_APPROVE_CONSENT_VALUE AS IDENTITY_APPROVE_CONSENT_VALUE,
-                                CS.MOTOR_INSURANCE_CONSENT_VALUE AS MOTOR_INSURANCE_CONSENT_VALUE,
-                                CS.NMOTOR_INSURANCE_CONSENT_VALUE AS NMOTOR_INSURANCE_CONSENT_VALUE,
-                                CS.ANALYZE_CONSENT_VALUE AS ANALYZE_CONSENT_VALUE,
-                                CS.INFO_CONSENT_VALUE AS INFO_CONSENT_VALUE,
-                                CS.INFO_PARTY_CONSENT_VALUE AS INFO_PARTY_CONSENT_VALUE,
-                                CS.ANALYZE_PARTY_CONSENT_VALUE AS ANALYZE_PARTY_CONSENT_VALUE,
-                                CS.PRDT_INFO_PARTY_CONSENT_VALUE AS PRDT_INFO_PARTY_CONSENT_VALUE,
-                                CS.FOLLOWUP_CONSENT_VALUE AS FOLLOWUP_CONSENT_VALUE,
-                                CS.INFO_DEVELOP_CONSENT_VALUE AS INFO_DEVELOP_CONSENT_VALUE,
-                                CS.E_PAPER_CONSENT_VALUE AS E_PAPER_CONSENT_VALUE,
-                                CS.IS_CHECK_SALE_SHEET_EXPLAIN AS IS_CHECK_SALE_SHEET_EXPLAIN,
-                                CS.IS_CHECK_PRODUCT_DETAIL AS IS_CHECK_PRODUCT_DETAIL,
-                                CS.IS_CHECK_PAYMENT_RULE AS IS_CHECK_PAYMENT_RULE,
-                                CS.IS_CHECK_CONTRACT_EXPLAIN AS IS_CHECK_CONTRACT_EXPLAIN,
-                                CS.IS_CHECK_TOTAL_LOSS_EXPLAIN AS IS_CHECK_TOTAL_LOSS_EXPLAIN,
-                                CS.IS_CHECK_TOTAL_LOSS_COMPANY AS IS_CHECK_TOTAL_LOSS_COMPANY,
-                                CS.IS_CHECK_LIFE_INSURANCE AS IS_CHECK_LIFE_INSURANCE,
-                                CS.IS_CHECK_L_INSUR_DETAIL AS IS_CHECK_L_INSUR_DETAIL,
-                                CS.IS_CHECK_L_INSUR_PLAN AS IS_CHECK_L_INSUR_PLAN,
-                                CS.IS_CHECK_L_INSUR_COMPANY AS IS_CHECK_L_INSUR_COMPANY,
-                                CS.IS_CHECK_L_INSUR_REFUND AS IS_CHECK_L_INSUR_REFUND,
-                                CS.IS_CHECK_L_INSUR_CANCLE_D AS IS_CHECK_L_INSUR_CANCLE_D,
-                                PP.APP_KEY_ID AS PP_APP_KEY_ID,
-                                PP.PURPOSE_OF_BUY AS PP_PURPOSE_OF_BUY,
-                                PP.PURPOSE_OF_BUY_NAME AS PP_PURPOSE_OF_BUY_NAME,
-                                PP.REASON_OF_BUY AS PP_REASON_OF_BUY,
-                                PP.REASON_OF_BUY_NAME AS PP_REASON_OF_BUY_NAME,
-                                PP.CAR_USER AS PP_CAR_USER,
-                                PP.CAR_USER_NAME AS PP_CAR_USER_NAME,
-                                PP.CAR_USER_RELATION AS PP_CAR_USER_RELATION,
-                                PP.CAR_USER_FULLNAME AS PP_CAR_USER_FULLNAME,
-                                PP.CAR_USER_CITIZENCARD_ID AS PP_CAR_USER_CITIZENCARD_ID,
-                                PP.CAR_USER_HOME_NO AS PP_CAR_USER_HOME_NO,
-                                PP.CAR_USER_HOME_NAME AS PP_CAR_USER_HOME_NAME,
-                                PP.CAR_USER_SOI AS PP_CAR_USER_SOI,
-                                PP.CAR_USER_TROK AS PP_CAR_USER_TROK,
-                                PP.CAR_USER_MOO AS PP_CAR_USER_MOO,
-                                PP.CAR_USER_ROAD AS PP_CAR_USER_ROAD,
-                                PP.CAR_USER_SUB_DISTRICT AS PP_CAR_USER_SUB_DISTRICT,
-                                PP.CAR_USER_DISTRICT AS PP_CAR_USER_DISTRICT,
-                                PP.CAR_USER_PROVINCE_CODE AS PP_CAR_USER_PROVINCE_CODE,
-                                PP.CAR_USER_PROVINCE_NAME AS PP_CAR_USER_PROVINCE_NAME,
-                                PP.CAR_USER_POSTAL_CODE AS PP_CAR_USER_POSTAL_CODE,
-                                PP.CAR_USER_ROOM_NO AS PP_CAR_USER_ROOM_NO,
-                                PP.CAR_USER_FLOOR AS PP_CAR_USER_FLOOR,
-                                PP.CAR_USER_PHONENO AS PP_CAR_USER_PHONENO,
-                                PP.FIRST_REFERRAL_FULLNAME AS PP_FIRST_REFERRAL_FULLNAME,
-                                PP.FIRST_REFERRAL_HOUSE_NO AS PP_FIRST_REFERRAL_HOUSENO,
-                                PP.FIRST_REFERRAL_MOO AS PP_FIRST_REFERRAL_MOO,
-                                PP.FIRST_REFERRAL_HOUSE_NAME AS PP_FIRST_REFERRAL_HOUSE_NAME,
-                                PP.FIRST_REFERRAL_ROOM_NO AS PP_FIRST_REFERRAL_ROOM_NO,
-                                PP.FIRST_REFERRAL_FLOOR AS PP_FIRST_REFERRAL_FLOOR,
-                                PP.FIRST_REFERRAL_SOI AS PP_FIRST_REFERRAL_SOI,
-                                PP.FIRST_REFERRAL_ROAD AS PP_FIRST_REFERRAL_ROAD,
-                                PP.FIRST_REFERRAL_SUB_DISTRICT AS PP_FIRST_REFERRAL_SUB_DISTRICT,
-                                PP.FIRST_REFERRAL_DISTRICT AS PP_FIRST_REFERRAL_DISTRICT,
-                                PP.FIRST_REFERRAL_PROVINCE_NAME AS PP_FIRST_REFERRAL_PROVINCE_N,
-                                PP.FIRST_REFERRAL_PROVINCE_CODE AS PP_FIRST_REFERRAL_PROVINCE_C,
-                                PP.FIRST_REFERRAL_POSTAL_CODE AS PP_FIRST_REFERRAL_POSTAL_CODE,
-                                PP.FIRST_REFERRAL_PHONENO AS PP_FIRST_REFERRAL_PHONENO,
-                                PP.FIRST_REFERRAL_RELATION AS PP_FIRST_REFERRAL_RELATION,
-                                PP.SECOND_REFERRAL_FULLNAME AS PP_SECOND_REFERRAL_FULLNAME,
-                                PP.SECOND_REFERRAL_HOUSE_NO AS PP_SECOND_REFERRAL_HOUSENO,
-                                PP.SECOND_REFERRAL_MOO AS PP_SECOND_REFERRAL_MOO,
-                                PP.SECOND_REFERRAL_HOUSE_NAME AS PP_SECOND_REFERRAL_HOUSE_NAME,
-                                PP.SECOND_REFERRAL_ROOM_NO AS PP_SECOND_REFERRAL_ROOM_NO,
-                                PP.SECOND_REFERRAL_FLOOR AS PP_SECOND_REFERRAL_FLOOR,
-                                PP.SECOND_REFERRAL_SOI AS PP_SECOND_REFERRAL_SOI,
-                                PP.SECOND_REFERRAL_ROAD AS PP_SECOND_REFERRAL_ROAD,
-                                PP.SECOND_REFERRAL_SUB_DISTRICT AS PP_SECOND_REFERRAL_SUB_D,
-                                PP.SECOND_REFERRAL_DISTRICT AS PP_SECOND_REFERRAL_DISTRICT,
-                                PP.SECOND_REFERRAL_PROVINCE_NAME AS PP_SECOND_REFERRAL_PROVINCE_N,
-                                PP.SECOND_REFERRAL_PROVINCE_CODE AS PP_SECOND_REFERRAL_PROVINCE_C,
-                                PP.SECOND_REFERRAL_POSTAL_CODE AS PP_SECOND_REFERRAL_POSTAL_CODE,
-                                PP.SECOND_REFERRAL_PHONENO AS PP_SECOND_REFERRAL_PHONENO,
-                                PP.SECOND_REFERRAL_RELATION AS PP_SECOND_REFERRAL_RELATION
+                            /* ... execute query to get quotationdata from ID ... */
+
+                            const results = await dbconnect[0].execute(
+                                `
+                                SELECT 
+                                    QU.QUO_ID,
+                                    QU.IDCARD_NUM,
+                                    QU.PHONE_NUMBER,
+                                    QU.TITLE_CODE,
+                                    QU.TITLE_NAME,
+                                    QU.FIRST_NAME,
+                                    QU.LAST_NAME,
+                                    QU.BIRTH_DATE,
+                                    QU.CIZ_ISSUED_DATE,
+                                    QU.CIZ_EXPIRED_DATE,
+                                    QU.CIZ_ADDRESS,
+                                    QU.CIZ_SUB_DISTRICT,
+                                    QU.CIZ_DISTRICT,
+                                    QU.CIZ_PROVINCE_NAME,
+                                    QU.CIZ_PROVINCE_CODE,
+                                    QU.CIZ_POSTAL_CODE,
+                                    QU.QUO_STATUS,
+                                    QU.QUO_LIVING_PLACE_ID,
+                                    QU.QUO_CONTRACT_PLACE_ID,
+                                    QU.QUO_WORKING_PLACE_ID,
+                                    QU.QUO_CAREER_ID,
+                                    QU.QUO_CREDIT_ID,
+                                    QU.QUO_IMAGE_ID,
+                                    QU.USER_ID,
+                                    QU.CREATED_TIME,
+                                    QU.LAST_UPDATED_TIME,
+                                    QU.APPROVED_TIME,
+                                    QU.FACE_RECOG_API_ID,
+                                    QU.QUO_KEY_APP_ID,
+                                    QU.QUO_PURPOSE_ID,
+                                    QU.QUO_CONSENT_ID,
+                                    QU.CIZ_GENDER,
+                                    QU.CIZ_STAYED_YEAR,
+                                    QU.CIZ_STAYED_MONTH,
+                                    QU.CIZ_MARIED_STATUS,
+                                    QU.CIZ_NICKNAME,
+                                    QU.CIZ_HOUSE_TYPE,
+                                    QU.CIZ_HOUSE_OWNER_TYPE,
+                                    QU.CIZ_AGE,
+                                    QU.CIZ_PHONE_VALID_STATUS,
+                                    QU.CIZCARD_STATUS,
+                                    QU.QUO_DOPA_STATUS,
+                                    QU.QUO_FACE_COMPARE_VERIFY,
+                                    QU.QUO_IMAGE_ATTACH_VERIFY,
+                                    QU.QUO_SECONDHAND_CAR_VERIFY,
+                                    QU.APPLICATION_NUM,
+                                    QU.CONTRACT_NO,
+                                    QU.LOAN_RESULT,
+                                    QU.SMS_SEND_STATUS,
+                                    QU.E_DOC_STATUS,
+                                    QU.E_PAPER,
+                                    QU.EMAIL,
+                                    QU.DEALER_SIGNATURE_OWNER,
+                                    QU.OTP_PHONE_VERIFY,
+                                    QU.OTP_CONSENT_VERIFY,
+                                    QU.QUO_APP_REF_NO,
+                                    QU.CIZCARD_IMAGE,
+                                    QU.ECONSENT_IMAGE,
+                                    CTP.APP_KEY_ID AS CTP_APP_KEY_ID,
+                                    CTP.ADDRESS AS CTP_ADDRESS,
+                                    CTP.SUB_DISTRICT AS CTP_SUB_DISTRICT,
+                                    CTP.DISTRICT AS CTP_DISTRICT,
+                                    CTP.PROVINCE_NAME AS CTP_PROVINCE_NAME,
+                                    CTP.PROVINCE_CODE AS CTP_PROVINCE_CODE,
+                                    CTP.POSTAL_CODE AS CTP_POSTAL_CODE,
+                                    HRP.APP_KEY_ID AS HRP_APP_KEY_ID,
+                                    HRP.ADDRESS AS HRP_ADDRESS,
+                                    HRP.SUB_DISTRICT AS HRP_SUB_DISTRICT,
+                                    HRP.DISTRICT AS HRP_DISTRICT,
+                                    HRP.PROVINCE_NAME AS HRP_PROVINCE_NAME,
+                                    HRP.PROVINCE_CODE AS HRP_PROVINCE_CODE,
+                                    HRP.POSTAL_CODE AS HRP_POSTAL_CODE,
+                                    LVP.APP_KEY_ID AS LVP_APP_KEY_ID,
+                                    LVP.ADDRESS AS LVP_ADDRESS,
+                                    LVP.SUB_DISTRICT AS LVP_SUB_DISTRICT,
+                                    LVP.DISTRICT AS LVP_DISTRICT,
+                                    LVP.PROVINCE_NAME AS LVP_PROVINCE_NAME,
+                                    LVP.PROVINCE_CODE AS LVP_PROVINCE_CODE,
+                                    LVP.POSTAL_CODE AS LVP_POSTAL_CODE,
+                                    LVP.LATITUDE AS LVP_LATITUDE,   
+                                    LVP.LONDTIUDE AS LVP_LONDTIUDE,
+                                    LVP.LALON AS LVP_LALON,
+                                    WP.APP_KEY_ID AS WP_APP_KEY_ID,
+                                    WP.ADDRESS AS WP_ADDRESS,
+                                    WP.SUB_DISTRICT AS WP_SUB_DISTRICT,
+                                    WP.DISTRICT AS WP_DISTRICT,
+                                    WP.PROVINCE_NAME AS WP_PROVINCE_NAME,
+                                    WP.PROVINCE_CODE AS WP_PROVINCE_CODE,
+                                    WP.POSTAL_CODE AS WP_POSTAL_CODE, 
+                                    WP.DESCRIPTION AS WP_DESCRIPTION, 
+                                    CD.APP_KEY_ID AS CD_APP_KEY_ID, 
+                                    CD.BRAND_CODE AS CD_BRAND_CODE, 
+                                    CD.BRAND_NAME AS CD_BRAND_NAME, 
+                                    CD.STATUS AS CD_STATUS, 
+                                    CD.MODEL_CODE AS CD_MODEL_CODE, 
+                                    CD.MODEL_NAME AS CD_MODEL_NAME, 
+                                    CD.MOTO_YEAR AS CD_MOTO_YEAR, 
+                                    CD.COLOR_CODE AS CD_COLOR_CODE, 
+                                    CD.COLOR_NAME AS CD_COLOR_NAME, 
+                                    CD.LOAN_AMOUNT AS CD_LOAN_AMOUNT, 
+                                    CD.PRODUCT_VALUE AS CD_PRODUCTVALUE, 
+                                    CD.INTEREST_RATE AS CD_INTEREST_RATE, 
+                                    CD.PAYMENT_VALUE AS CD_PAYMENT_VALUE, 
+                                    CD.PAYMENT_ROUND_COUNT AS CD_PAYMENT_ROUND_COUNT, 
+                                    CD.DOWN_PAYMENT AS CD_DOWN_PAYMENT,
+                                    CD.INSURER_CODE AS CD_INSURER_CODE,
+                                    CD.INSURER_NAME AS CD_INSURER_NAME,
+                                    CD.INSURANCE_CODE AS CD_INSURANCE_CODE,
+                                    CD.INSURANCE_NAME AS CD_INSURANCE_NAME,
+                                    CD.INSURANCE_YEAR AS CD_INSURANCE_YEAR,
+                                    CD.INSURANCE_PLAN_PRICE AS CD_INSURANCE_PLAN_PRICE,
+                                    CD.IS_INCLUDE_LOANAMOUNT AS CD_IS_INCLUDE_LOANAMOUNT,
+                                    CD.FACTORY_PRICE AS CD_FACTORY_PRICE,
+                                    CD.SIZE_MODEL AS CD_SIZE_MODEL,
+                                    CD.COVERAGE_TOTAL_LOSS AS CD_COVERAGE_TOTAL_LOSS,
+                                    CD.MAX_LTV AS CD_MAX_LTV,
+                                    CD.PRICE_INCLUDE_VAT AS CD_PRICE_INCLUDE_VAT,
+                                    CD.ENGINE_NUMBER AS CD_ENGINE_NUMBER,
+                                    CD.CHASSIS_NUMBER AS CD_CHASSIS_NUMBER,
+                                    CD.ENGINE_NO_RUNNING AS CD_ENGINE_NO_RUNNING,
+                                    CD.CHASSIS_NO_RUNNING AS CD_CHASSIS_NO_RUNNING,
+                                    (CD.LOAN_AMOUNT + CD.INSURANCE_PLAN_PRICE) AS CD_NET_FINANCE,
+                                    CD.BUSSINESS_CODE AS CD_BUSSINESS_CODE,
+                                    CD.BUSSINESS_NAME AS CD_BUSSINESS_NAME,
+                                    CD.MODEL_YEAR AS CD_MODEL_YEAR,
+                                    CD.CC AS CD_CC, 
+                                    CD.GRADE AS CD_GRADE, 
+                                    CD.IS_OVER_MAX_LTV AS CD_IS_OVER_MAX_LTV, 
+                                    CD.OVER_MAX_LTV_REASON AS CD_OVER_MAX_LTV_REASON, 
+                                    CD.REG_NO AS CD_REG_NO,
+                                    CD.GRADE AS CD_GRADE, 
+                                    CD.REG_DATE AS CD_REG_DATE,
+                                    CD.CONTRACT_REF AS CD_CONTRACT_REF,
+                                    CD.REG_MILE AS CD_REG_MILE,
+                                    CD.PROV_CODE AS CD_PROV_CODE,
+                                    CD.PROV_NAME AS CD_PROV_NAME,
+                                    CR.APP_KEY_ID AS CR_APP_KEY_ID,
+                                    CR.MAIN_CAREER_NAME AS CR_MAIN_CAREER_NAME,
+                                    CR.MAIN_CAREER_CODE AS CR_MAIN_CAREER_CODE,
+                                    CR.MAIN_WORKPLACE_NAME AS CR_MAIN_WORKPLACE_NAME,
+                                    CR.MAIN_POSITION AS CR_MAIN_POSITION,
+                                    CR.MAIN_DEPARTMENT AS CR_MAIN_DEPARTMENT,
+                                    CR.MAIN_EXPERIENCE_YEAR AS CR_MAIN_EXPERIENCE_YEAR,
+                                    CR.MAIN_EXPERIENCE_MONTH AS CR_MAIN_EXPERIENCE_MONTH,
+                                    CR.MAIN_SALARY_PER_MONTH AS CR_MAIN_SALARY_PER_MONTH,
+                                    CR.MAIN_SALARY_PER_DAY AS CR_MAIN_SALARY_PER_DAY,
+                                    CR.MAIN_LEADER_NAME AS CR_MAIN_LEADER_NAME,
+                                    CR.MAIN_WORK_PER_WEEK AS CR_MAIN_WORK_PER_WEEK, 
+                                    CR.MAIN_WORKPLACE_PHONE_NO_1 AS CR_MAIN_WORKPLACE_PHONE_NO_1, 
+                                    CR.MAIN_WORKPLACE_PHONE_NO_2 AS CR_MAIN_WORKPLACE_PHONE_NO_2, 
+                                    CR.IS_SUB_CAREER AS CR_IS_SUB_CAREER,
+                                    CR.SUB_CAREER_NAME AS CR_SUB_CAREER_NAME,
+                                    CR.SUB_CAREER_CODE AS CR_SUB_CAREER_CODE,
+                                    CR.SUB_WORKPLACE_NAME AS CR_SUB_WORKPLACE_NAME,
+                                    CR.SUB_POSITION AS CR_SUB_POSITION,
+                                    CR.SUB_DEPARTMENT AS CR_SUB_DEPARTMENT,
+                                    CR.SUB_EXPERIENCE_YEAR AS CR_SUB_EXPERIENCE_YEAR,
+                                    CR.SUB_EXPERIENCE_MONTH AS CR_SUB_EXPERIENCE_MONTH,
+                                    CR.SUB_SALARY_PER_MONTH AS CR_SUB_SALARY_PER_MONTH,
+                                    CR.SUB_SALARY_PER_DAY AS CR_SUB_SALARY_PER_DAY,
+                                    CR.SUB_LEADER_NAME AS CR_SUB_LEADER_NAME,
+                                    CR.SUB_WORK_PER_WEEK AS CR_SUB_WORK_PER_WEEK,
+                                    CS.APP_KEY_ID AS CS_APP_KEY_ID,
+                                    CS.CUSTOMER_NAME AS CS_CUSTOMER_NAME,
+                                    CS.FIRST_NAME AS CS_FIRST_NAME,
+                                    CS.LAST_NAME AS CS_LAST_NAME,
+                                    CS.IS_CREDIT_CONSENT AS CS_IS_CREDIT_CONSENT,
+                                    CS.IS_FINAL_CONSENT AS CS_IS_FINAL_CONSENT,
+                                    CS.IS_DISCLOSURE_CONSENT AS CS_IS_DISCLOSURE_CONSENT,
+                                    CS.IS_PERSONAL_DISCLOSURE_CONSENT AS CS_IS_PERSONAL_DISCLOSURE,
+                                    CS.SIGNATURE_IMAGE AS CS_SIGNATURE_IMAGE,
+                                    CS.WITNESS_IMAGE AS CS_WITNESS_IMAGE,
+                                    CS.IDENTITY_APPROVE_CONSENT_VALUE AS IDENTITY_APPROVE_CONSENT_VALUE,
+                                    CS.MOTOR_INSURANCE_CONSENT_VALUE AS MOTOR_INSURANCE_CONSENT_VALUE,
+                                    CS.NMOTOR_INSURANCE_CONSENT_VALUE AS NMOTOR_INSURANCE_CONSENT_VALUE,
+                                    CS.ANALYZE_CONSENT_VALUE AS ANALYZE_CONSENT_VALUE,
+                                    CS.INFO_CONSENT_VALUE AS INFO_CONSENT_VALUE,
+                                    CS.INFO_PARTY_CONSENT_VALUE AS INFO_PARTY_CONSENT_VALUE,
+                                    CS.ANALYZE_PARTY_CONSENT_VALUE AS ANALYZE_PARTY_CONSENT_VALUE,
+                                    CS.PRDT_INFO_PARTY_CONSENT_VALUE AS PRDT_INFO_PARTY_CONSENT_VALUE,
+                                    CS.FOLLOWUP_CONSENT_VALUE AS FOLLOWUP_CONSENT_VALUE,
+                                    CS.INFO_DEVELOP_CONSENT_VALUE AS INFO_DEVELOP_CONSENT_VALUE,
+                                    CS.E_PAPER_CONSENT_VALUE AS E_PAPER_CONSENT_VALUE,
+                                    CS.IS_CHECK_SALE_SHEET_EXPLAIN AS IS_CHECK_SALE_SHEET_EXPLAIN,
+                                    CS.IS_CHECK_PRODUCT_DETAIL AS IS_CHECK_PRODUCT_DETAIL,
+                                    CS.IS_CHECK_PAYMENT_RULE AS IS_CHECK_PAYMENT_RULE,
+                                    CS.IS_CHECK_CONTRACT_EXPLAIN AS IS_CHECK_CONTRACT_EXPLAIN,
+                                    CS.IS_CHECK_TOTAL_LOSS_EXPLAIN AS IS_CHECK_TOTAL_LOSS_EXPLAIN,
+                                    CS.IS_CHECK_TOTAL_LOSS_COMPANY AS IS_CHECK_TOTAL_LOSS_COMPANY,
+                                    CS.IS_CHECK_LIFE_INSURANCE AS IS_CHECK_LIFE_INSURANCE,
+                                    CS.IS_CHECK_L_INSUR_DETAIL AS IS_CHECK_L_INSUR_DETAIL,
+                                    CS.IS_CHECK_L_INSUR_PLAN AS IS_CHECK_L_INSUR_PLAN,
+                                    CS.IS_CHECK_L_INSUR_COMPANY AS IS_CHECK_L_INSUR_COMPANY,
+                                    CS.IS_CHECK_L_INSUR_REFUND AS IS_CHECK_L_INSUR_REFUND,
+                                    CS.IS_CHECK_L_INSUR_CANCLE_D AS IS_CHECK_L_INSUR_CANCLE_D,
+                                    PP.APP_KEY_ID AS PP_APP_KEY_ID,
+                                    PP.PURPOSE_OF_BUY AS PP_PURPOSE_OF_BUY,
+                                    PP.PURPOSE_OF_BUY_NAME AS PP_PURPOSE_OF_BUY_NAME,
+                                    PP.REASON_OF_BUY AS PP_REASON_OF_BUY,
+                                    PP.REASON_OF_BUY_NAME AS PP_REASON_OF_BUY_NAME,
+                                    PP.CAR_USER AS PP_CAR_USER,
+                                    PP.CAR_USER_NAME AS PP_CAR_USER_NAME,
+                                    PP.CAR_USER_RELATION AS PP_CAR_USER_RELATION,
+                                    PP.CAR_USER_FULLNAME AS PP_CAR_USER_FULLNAME,
+                                    PP.CAR_USER_CITIZENCARD_ID AS PP_CAR_USER_CITIZENCARD_ID,
+                                    PP.CAR_USER_HOME_NO AS PP_CAR_USER_HOME_NO,
+                                    PP.CAR_USER_HOME_NAME AS PP_CAR_USER_HOME_NAME,
+                                    PP.CAR_USER_SOI AS PP_CAR_USER_SOI,
+                                    PP.CAR_USER_TROK AS PP_CAR_USER_TROK,
+                                    PP.CAR_USER_MOO AS PP_CAR_USER_MOO,
+                                    PP.CAR_USER_ROAD AS PP_CAR_USER_ROAD,
+                                    PP.CAR_USER_SUB_DISTRICT AS PP_CAR_USER_SUB_DISTRICT,
+                                    PP.CAR_USER_DISTRICT AS PP_CAR_USER_DISTRICT,
+                                    PP.CAR_USER_PROVINCE_CODE AS PP_CAR_USER_PROVINCE_CODE,
+                                    PP.CAR_USER_PROVINCE_NAME AS PP_CAR_USER_PROVINCE_NAME,
+                                    PP.CAR_USER_POSTAL_CODE AS PP_CAR_USER_POSTAL_CODE,
+                                    PP.CAR_USER_ROOM_NO AS PP_CAR_USER_ROOM_NO,
+                                    PP.CAR_USER_FLOOR AS PP_CAR_USER_FLOOR,
+                                    PP.CAR_USER_PHONENO AS PP_CAR_USER_PHONENO,
+                                    PP.FIRST_REFERRAL_FULLNAME AS PP_FIRST_REFERRAL_FULLNAME,
+                                    PP.FIRST_REFERRAL_HOUSE_NO AS PP_FIRST_REFERRAL_HOUSENO,
+                                    PP.FIRST_REFERRAL_MOO AS PP_FIRST_REFERRAL_MOO,
+                                    PP.FIRST_REFERRAL_HOUSE_NAME AS PP_FIRST_REFERRAL_HOUSE_NAME,
+                                    PP.FIRST_REFERRAL_ROOM_NO AS PP_FIRST_REFERRAL_ROOM_NO,
+                                    PP.FIRST_REFERRAL_FLOOR AS PP_FIRST_REFERRAL_FLOOR,
+                                    PP.FIRST_REFERRAL_SOI AS PP_FIRST_REFERRAL_SOI,
+                                    PP.FIRST_REFERRAL_ROAD AS PP_FIRST_REFERRAL_ROAD,
+                                    PP.FIRST_REFERRAL_SUB_DISTRICT AS PP_FIRST_REFERRAL_SUB_DISTRICT,
+                                    PP.FIRST_REFERRAL_DISTRICT AS PP_FIRST_REFERRAL_DISTRICT,
+                                    PP.FIRST_REFERRAL_PROVINCE_NAME AS PP_FIRST_REFERRAL_PROVINCE_N,
+                                    PP.FIRST_REFERRAL_PROVINCE_CODE AS PP_FIRST_REFERRAL_PROVINCE_C,
+                                    PP.FIRST_REFERRAL_POSTAL_CODE AS PP_FIRST_REFERRAL_POSTAL_CODE,
+                                    PP.FIRST_REFERRAL_PHONENO AS PP_FIRST_REFERRAL_PHONENO,
+                                    PP.FIRST_REFERRAL_RELATION AS PP_FIRST_REFERRAL_RELATION,
+                                    PP.SECOND_REFERRAL_FULLNAME AS PP_SECOND_REFERRAL_FULLNAME,
+                                    PP.SECOND_REFERRAL_HOUSE_NO AS PP_SECOND_REFERRAL_HOUSENO,
+                                    PP.SECOND_REFERRAL_MOO AS PP_SECOND_REFERRAL_MOO,
+                                    PP.SECOND_REFERRAL_HOUSE_NAME AS PP_SECOND_REFERRAL_HOUSE_NAME,
+                                    PP.SECOND_REFERRAL_ROOM_NO AS PP_SECOND_REFERRAL_ROOM_NO,
+                                    PP.SECOND_REFERRAL_FLOOR AS PP_SECOND_REFERRAL_FLOOR,
+                                    PP.SECOND_REFERRAL_SOI AS PP_SECOND_REFERRAL_SOI,
+                                    PP.SECOND_REFERRAL_ROAD AS PP_SECOND_REFERRAL_ROAD,
+                                    PP.SECOND_REFERRAL_SUB_DISTRICT AS PP_SECOND_REFERRAL_SUB_D,
+                                    PP.SECOND_REFERRAL_DISTRICT AS PP_SECOND_REFERRAL_DISTRICT,
+                                    PP.SECOND_REFERRAL_PROVINCE_NAME AS PP_SECOND_REFERRAL_PROVINCE_N,
+                                    PP.SECOND_REFERRAL_PROVINCE_CODE AS PP_SECOND_REFERRAL_PROVINCE_C,
+                                    PP.SECOND_REFERRAL_POSTAL_CODE AS PP_SECOND_REFERRAL_POSTAL_CODE,
+                                    PP.SECOND_REFERRAL_PHONENO AS PP_SECOND_REFERRAL_PHONENO,
+                                    PP.SECOND_REFERRAL_RELATION AS PP_SECOND_REFERRAL_RELATION
                                 FROM MPLS_QUOTATION QU
                                 LEFT JOIN MPLS_CONTACT_PLACE CTP
                                 ON QUO_KEY_APP_ID = CONT_QUO_KEY_APP_ID
@@ -779,51 +838,84 @@ export class QuotationService {
                                 LEFT JOIN MPLS_HOUSE_REGIS_PLACE HRP
                                 ON QUO_KEY_APP_ID = HRP_QUO_KEY_APP_ID
                                 WHERE QUO_KEY_APP_ID = :quotationid 
-                    `, {
-                        quotationid: quotationid
-                    }, {
-                        outFormat: 4002,
-                    })
+                            `, {
+                                quotationid: { dir: oracledb.BIND_IN, val: quotationid, type: oracledb.STRING }
+                            }, {
+                                outFormat: 4002,
+                            })
 
-                    if (results.rows.length == 0) {
-                        return res.status(200).send({
-                            status: 500,
-                            message: 'No record found',
-                            data: []
-                        })
-                    } else {
+                            if (results.rows.length !== 0) {
 
-                        let resQueryresult = results
-                        let resData = resQueryresult.rows as IResGetquotationbyidData[]
-                        const lowerResData = this.utilService.loopObjtolowerkey(resData) as IResGetquotationbyidData[]
+                                if (results.rows.length == 1) {
 
-                        /* .... check permission of record owner ...*/
-                        if (radmin !== 'Y' && radmin !== 'FI') {
-                            if (lowerResData[0].user_id != userid) {
+                                    let resQueryresult = results
+                                    let resData = resQueryresult.rows as IResGetquotationbyidData[]
+                                    const lowerResData = this.utilService.loopObjtolowerkey(resData) as IResGetquotationbyidData[]
+
+                                    /* .... check permission of record owner ...*/
+
+                                    const t1 = (lowerResData[0].user_id).toString()
+                                    const t2 = userid
+                                    if (
+                                        radmin === 'Y' ||
+                                        radmin === 'FI' ||
+                                        ((lowerResData[0].user_id).toString() == userid)
+                                    ) {
+                                        try {
+                                            /*.... Finish ...*/
+
+                                            let returnData = new Object as IResGetquotationbyid
+                                            returnData.data = lowerResData
+                                            returnData.status = 200
+                                            returnData.message = `Success`
+
+
+                                            return res.status(200).json(returnData)
+
+                                            /* ... api process finish (success) ... */
+                                        } catch (e) {
+                                            return res.status(200).send({
+                                                status: 500,
+                                                message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                                                data: []
+                                            })
+                                        }
+                                    } else {
+
+                                        return res.status(200).send({
+                                            status: 202,
+                                            message: 'ไม่มีสิทธิ์ในการดูใบคำขอนี้',
+                                            data: []
+                                        })
+
+                                    }
+                                } else {
+                                    return res.status(200).send({
+                                        status: 200,
+                                        message: `Can't Identity quotation record (duplicate)`,
+                                        data: []
+                                    })
+                                }
+                            } else {
+
                                 return res.status(200).send({
-                                    status: 202,
-                                    message: 'ไม่มีสิทธิ์ในการดูใบคำขอนี้',
+                                    status: 500,
+                                    message: `No record found`,
                                     data: []
                                 })
                             }
-                        }
-
-                        try {
-                            /*.... finish ...*/
-                            return res.status(200).json({
-                                status: 200,
-                                message: `success`,
-                                data: lowerResData
-                            })
-                            // === api process finish (success) === 
-                        } catch (e) {
-                            return res.status(200).send({
+                        } else {
+                            return res.status(500).send({
                                 status: 500,
-                                message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                                message: `ไม่มีค่า quotationid`,
                                 data: []
                             })
                         }
-
+                    } else {
+                        return res.status(500).send({
+                            status: 500,
+                            message: `ไม่มีค่า user id สำหรับยืนยันตน`
+                        })
                     }
                 } else {
                     if (dbconnect[1]) {
@@ -867,7 +959,7 @@ export class QuotationService {
     async MPLS_get_dopa_valid_status(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
 
             let quotationid: string = req.body.quotationid
@@ -878,7 +970,8 @@ export class QuotationService {
 
                     const checkdopavalidstatusexec = await dbconnect[0].execute(
                         `
-                            SELECT DISTINCT CHECKCARDSTATUS_ID AS STATUS_CODE FROM  DOPA_CHECKCARDSTATUS_P
+                            SELECT DISTINCT CHECKCARDSTATUS_ID AS STATUS_CODE 
+                            FROM  DOPA_CHECKCARDSTATUS_P
                             WHERE ECONSENT_STATUS = 'Y'
                             ORDER BY CHECKCARDSTATUS_ID ASC
                         `, {
@@ -960,7 +1053,7 @@ export class QuotationService {
     async MPLS_dipchip(@UploadedFiles() files: { image_file?: Array<Express.Multer.File> }, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -978,7 +1071,8 @@ export class QuotationService {
 
                     const dopastatuschk = await dbconnect[0].execute(
                         `
-                        SELECT * FROM DIPCHIP_CARD_READER_DOPA_LOG
+                        SELECT * 
+                        FROM DIPCHIP_CARD_READER_DOPA_LOG
                         WHERE UUID = :UUID 
                     `, {
                         UUID: reqData.dipchipuuid
@@ -1390,8 +1484,7 @@ export class QuotationService {
 
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        // let dbconnect = await this.dbconnect.ConnectionDBbuffer()
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDBbuffer() /* ... Have image ... */
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -1745,7 +1838,7 @@ export class QuotationService {
         // *** เพิ่มเงื่อนไขการเพิ่มข้อมูล postalCode จากบัตรประชาชนกรณีที่ไม่มีค่ารหัสไปรษณีย์เวลา dipchip (add-on) 20/02/2023 ***
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const token = user.ID
             const userid = user.ID
@@ -1761,7 +1854,7 @@ export class QuotationService {
                         /* ... Check Permission ... */
                         if (radmin !== 'Y') {
 
-                            const reqData = JSON.parse(req.body.item) as IReqMplsCreateOrUpdateCitizendata
+                            const reqData = req.body as IReqMplsCreateOrUpdateCitizendata
 
                             /* ... check create or update with (QUO_KEY_APP_ID) ...*/
 
@@ -2534,7 +2627,7 @@ export class QuotationService {
     async MPLS_update_phone_number(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -2690,11 +2783,11 @@ export class QuotationService {
     async MPLS_check_secondhand_car_image_attach(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqMplsCheckSecondhandCarImageAttach
+            const reqData = req.body as IReqMplsCheckSecondhandCarImageAttach
 
             /* ... check parameter quotationid ... */
 
@@ -2891,7 +2984,7 @@ export class QuotationService {
     async MPLS_create_or_update_credit(@UploadedFiles() files: { image_file?: Array<Express.Multer.File> }, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -3555,11 +3648,11 @@ export class QuotationService {
     async MPLS_check_application_no(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqMplsCheckApplicationNo
+            const reqData = req.body as IReqMplsCheckApplicationNo
 
             if (dbconnect) {
 
@@ -3574,44 +3667,52 @@ export class QuotationService {
 
                 if (dbconnect[0]) {
 
-                    const checkappnoexec = await dbconnect[0].execute(
-                        `
-                            SELECT APPLICATION_NUM
-                            FROM MPLS_QUOTATION
-                            WHERE QUO_KEY_APP_ID = :quotationid
-                        `
-                        , {
-                            quotationid: reqData.quotationid
-                        }, {
-                        outFormat: 4002
-                    })
+                    try {
+                        const checkappnoexec = await dbconnect[0].execute(
+                            `
+                                SELECT APPLICATION_NUM
+                                FROM MPLS_QUOTATION
+                                WHERE QUO_KEY_APP_ID = :quotationid
+                            `
+                            , {
+                                quotationid: reqData.quotationid
+                            }, {
+                            outFormat: 4002
+                        })
 
-                    if (checkappnoexec.rows.length !== 0) {
-                        /* ... check application num and return result check ... */
-                        const checkappnoe = this.utilService.toLowerKeys((checkappnoexec.rows[0])) as IExecCheckappnoexec
+                        if (checkappnoexec.rows.length !== 0) {
+                            /* ... check application num and return result check ... */
+                            const checkappnoe = this.utilService.toLowerKeys((checkappnoexec.rows[0])) as IExecCheckappnoexec
 
-                        const applicationidvalue = checkappnoe.application_num
-                        if (applicationidvalue == '' || applicationidvalue == null) {
-                            return res.status(200).send({
-                                status: 200,
-                                message: `ยังไม่มีเลข application_num`,
-                                data: [{
-                                    application_no: ''
-                                }]
-                            })
+                            const applicationidvalue = checkappnoe.application_num
+                            if (applicationidvalue == '' || applicationidvalue == null) {
+                                return res.status(200).send({
+                                    status: 200,
+                                    message: `ยังไม่มีเลข application_num`,
+                                    data: [{
+                                        application_no: ''
+                                    }]
+                                })
+                            } else {
+                                return res.status(200).send({
+                                    status: 200,
+                                    message: `มีเลข application_num อยู่แล้ว`,
+                                    data: [{
+                                        application_no: applicationidvalue
+                                    }]
+                                })
+                            }
                         } else {
                             return res.status(200).send({
-                                status: 200,
-                                message: `มีเลข application_num อยู่แล้ว`,
-                                data: [{
-                                    application_no: applicationidvalue
-                                }]
+                                status: 500,
+                                message: 'No application_no',
+                                data: []
                             })
                         }
-                    } else {
+                    } catch (e) {
                         return res.status(200).send({
                             status: 500,
-                            message: 'No application_no',
+                            mesage: `Fail to execute check application no : ${e.message ? e.message : `No return msg`}`,
                             data: []
                         })
                     }
@@ -3679,7 +3780,7 @@ export class QuotationService {
     async MPLS_validation_otp_econsent_non(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -3798,7 +3899,7 @@ export class QuotationService {
     async MPLS_create_or_update_careerandpurpose(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -4237,7 +4338,7 @@ export class QuotationService {
     async MPLS_create_consent(@UploadedFiles() files: Array<Express.Multer.File>, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
         req.headers['cache-control'] = 'no-cache' // === clear cache data ==
-        let dbconnect = await this.dbconnect.ConnectionDBbuffer()
+        let dbconnect = await this.dbconnect.ConnectionDB()
         try {
             const userid = user.ID
             const radmin = user.admin_role
@@ -4249,8 +4350,6 @@ export class QuotationService {
 
                 /*... check permission ... */
                 if (radmin !== 'Y') {
-
-                    console.log(`files : ${files}`)
 
                     const signature_image = files.find((x) => x.fieldname == `signature_image`)
                     const witness_image = files.find((x) => x.fieldname === `witness_image`)
@@ -4503,9 +4602,342 @@ export class QuotationService {
         }
     }
 
+    /* ... 
+    product-detail-tab page 
+    (blank)
+    ... */
 
-    /* .... quotation-tab ... */
+    /* 
+    career-and-purpose page
+    */
 
-    /* ... product-detail-tab ... */
-    
+    /* 
+    image-attach 
+    */
+
+    /* 
+
+    /*
+    signature (consent)
+    */
+
+    /* 
+    Send-Car
+    */
+
+    async getinsurancedetailbyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = req.query
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    /* .... check parameter applicationid ... */
+                    if (reqData.applicationid !== null && reqData.applicationid !== ``) {
+
+                        const resultaddressinfoexec = await dbconnect[0].execute(
+                            `
+                                SELECT 
+                                    X_CUST_MAPPING_EXT.APPLICATION_NUM,
+                                    X_CUST_MAPPING_EXT.NET_FINANCE,
+                                    X_CUST_MAPPING_EXT.MONTHLY,
+                                    X_CUST_MAPPING_EXT.RATE_CHARGE,
+                                    X_CUST_MAPPING_EXT.TERM,
+                                    X_SAMM_CONTRACT.FIRST_DUE,
+                                    -- X_PRODUCT_DETAIL.PRODUCT_CODE,
+                                    X_PRODUCT_DETAIL.BRAND_CODE,
+                                    X_PRODUCT_DETAIL.MODELCODE,
+                                    BTW.F_GET_MODEL_NAME (X_PRODUCT_DETAIL.BRAND_CODE,X_PRODUCT_DETAIL.MODELCODE)  AS MODEL_NAME,
+                                    X_CUST_MAPPING_EXT.INSURANCE_YEARS,
+                                    X_INSURER_INFO.INSURER_NAME,
+                                    BTW.GET_FACTORY_PRICE(X_PRODUCT_DETAIL.PRODUCT_CODE,X_PRODUCT_DETAIL.BRAND_CODE,X_PRODUCT_DETAIL.MODELCODE) AS TL_T1,
+                                    X_CUST_MAPPING_EXT.COVERAGE_TOTAL_LOSS
+                                FROM btw.X_CUST_MAPPING_EXT,btw.X_SAMM_CONTRACT, btw.X_PRODUCT_DETAIL,btw.X_INSURANCE,btw.X_INSURER_INFO
+                                WHERE (X_CUST_MAPPING_EXT.APPLICATION_NUM =X_SAMM_CONTRACT.APPLICATION_NUM)
+                                AND (X_CUST_MAPPING_EXT.APPLICATION_NUM =X_PRODUCT_DETAIL.APPLICATION_NUM)
+                                AND (X_CUST_MAPPING_EXT.INSURANCE_CODE   =   X_INSURANCE.INSURANCE_CODE)
+                                AND (X_INSURANCE.INSURER_CODE = X_INSURER_INFO.INSURER_CODE)
+                                AND X_CUST_MAPPING_EXT.LOAN_RESULT='Y'
+                                AND  X_CUST_MAPPING_EXT.APPLICATION_NUM = :applicationid
+                            `,
+                            {
+                                applicationid: <string>(reqData.applicationid)
+                            },
+                            {
+                                outFormat: 4002
+                            }
+                        )
+
+                        /* ... check result query address info ... */
+
+                        if (resultaddressinfoexec.rows.length !== 0) {
+
+                            const resultaddressinfo = this.utilService.loopObjtolowerkey(resultaddressinfoexec.rows) as [IResGetinsurancedetailbyidData]
+                            let returnData = new Object as IResGetinsurancedetailbyid
+                            returnData.data = resultaddressinfo
+                            returnData.status = 200
+                            returnData.message = 'success'
+
+                            return res.status(200).json(returnData);
+
+                            /* ... Finish ... */
+
+                        } else {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `ไม่พบรายการ insurance detail (not found record)`,
+                                data: []
+                            })
+                        }
+
+                    } else {
+                        return res.status(200).send({
+                            status: 200,
+                            message: `Not Found parameter applicationid`,
+                            data: []
+                        })
+                    }
+
+
+
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
+    /* ... bypass-signature ... */
+
+    async bypasssignature(@UploadedFiles() files: Array<Express.Multer.File>, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = JSON.parse(req.body.quotationid) as IReqBypasssignature
+            const quotationid = reqData.quotationid ? reqData.quotationid : ''
+            let validateQuo: boolean = false
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    const customersig_image = files.find((x) => x.fieldname == `customersig_image`) ?? null
+                    const witnesssig_image = files.find((x) => x.fieldname == `witnesssig_image`) ?? null
+
+                    const customersigbuffer = customersig_image ? this.utilService.imagetobuffer(customersig_image) : null
+                    const witnesssigbuffer = witnesssig_image ? this.utilService.imagetobuffer(witnesssig_image) : null
+
+                    /* ... check request paramter ... */
+                    if (quotationid && customersig_image && witnesssig_image) {
+
+                        /* ... check quotation status (loan_result) ... */
+
+                        const chkloanresultstatusexec = await dbconnect[0].execute(
+                            `
+                                SELECT QUO_KEY_APP_ID, CONTRACT_NO, LOAN_RESULT 
+                                FROM MPLS_QUOTATION 
+                                WHERE QUO_KEY_APP_ID = :quotationid
+                            `, {
+                            quotationid: quotationid
+                        }, {
+                            outFormat: 4002
+                        })
+
+                        if (chkloanresultstatusexec.rows.length == 1) {
+
+                            /* ... check validate ... */
+                            const chkloanresultstatus = this.utilService.toLowerKeys(chkloanresultstatusexec.rows[0]) as IExecChkloanresultstatus
+                            validateQuo = chkloanresultstatus.loan_result == 'Y' ? false : true
+
+
+                            if (!validateQuo) {
+
+                                try {
+
+                                    /* ... check content not already exits before insert ... */
+
+                                    const chkrecentexitsexec = await dbconnect[0].execute(
+                                        `
+                                            SELECT CONS_QUO_KEY_APP_ID FROM MPLS_CONSENT
+                                            WHERE CONS_QUO_KEY_APP_ID = :quotationid
+                                        `, {
+                                        quotationid: quotationid
+                                    }, {
+                                        outFormat: 4002
+                                    })
+
+                                    if (chkrecentexitsexec.rows.length == 0) {
+                                        /* ... allow condition byapss ... */
+                                        /* .... insert mpls_consent ... */
+                                        try {
+
+                                            const consentkeyid = v4()
+                                            /* ... insert consent record to link with quotation record ... */
+
+                                            const updatemplsconsentbypassexec = await dbconnect[0].execute(
+                                                `
+                                                    INSERT INTO MPLS_CONSENT 
+                                                    (
+                                                        CONS_QUO_KEY_APP_ID, 
+                                                        APP_KEY_ID, 
+                                                        SIGNATURE_IMAGE, 
+                                                        WITNESS_IMAGE
+                                                    )
+                                                    VALUES 
+                                                    (
+                                                        :CONS_QUO_KEY_APP_ID, 
+                                                        :APP_KEY_ID, 
+                                                        :SIGNATURE_IMAGE, 
+                                                        :WITNESS_IMAGE
+                                                    )
+                                                `,
+                                                {
+                                                    CONS_QUO_KEY_APP_ID: quotationid,
+                                                    APP_KEY_ID: consentkeyid,
+                                                    SIGNATURE_IMAGE: customersigbuffer,
+                                                    WITNESS_IMAGE: witnesssigbuffer
+                                                })
+
+                                            console.log(`sussecc create consent bypass : ${updatemplsconsentbypassexec.rowsAffected}`)
+
+                                            const resResultUpdate = updatemplsconsentbypassexec.rows
+
+                                            return res.status(200).send({
+                                                status: 200,
+                                                message: `Create consent bypass Success`,
+                                                data: resResultUpdate
+                                            })
+
+                                            /* ... Finish ... */
+
+                                        } catch (e) {
+                                            return res.status(200).send({
+                                                status: 500,
+                                                message: `Error during during insert image (${e.message ? e.message : 'no return msg'})`
+                                            })
+                                        }
+
+                                    } else {
+                                        return res.status(200).send({
+                                            status: 500,
+                                            message: `Can't create, MPLS_consent was Duplicate`,
+                                            data: []
+                                        })
+                                    }
+
+                                } catch (e) {
+                                    return res.status(200).send({
+                                        status: 500,
+                                        message: `Error during check mpls_econsent record exits (${e.message ? e.message : 'no return msg'})`
+                                    })
+                                }
+
+                            } else {
+                                return res.status(200).send({
+                                    status: 200,
+                                    message: 'quotation record not valid',
+                                    data: chkloanresultstatus
+                                })
+                            }
+
+                        } else if (chkloanresultstatusexec.rows.length == 0) {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `ไม่พบรายการ quotation ภายใต้ ID`
+                            })
+                        } else {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `ไม่สามารถระบุรายการ quotation ได้ (duplicate) : (rowsAffected : ${chkloanresultstatusexec.rowsAffected ? chkloanresultstatusexec.rowsAffected : '-'})`
+                            })
+                        }
+
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `ตรวจไม่พบ parameter (customersig_image, witnesssig_image, quotationid)`,
+                            data: []
+                        })
+                    }
+
+
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
 }

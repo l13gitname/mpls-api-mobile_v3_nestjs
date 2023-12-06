@@ -1,5 +1,6 @@
 import { IUtilReqObjtoparams } from '../interface/i-util-req-objtoparams.interface';
 import { Injectable } from '@nestjs/common';
+import { v4 } from 'uuid';
 import * as fs from 'fs';
 
 @Injectable()
@@ -64,4 +65,22 @@ export class UtilityService {
     imagetobuffer(file: Express.Multer.File) {
         return fs.readFileSync(file.path)
     }
+
+    /* ... use in MPLS_create_send_car_deliver_and_loyalty_consent ... */
+    createImageInfo(file: Express.Multer.File, code: string, imageData: any[], quotationid: string) {
+        let image = <any>{}
+        const filename = file[0].fieldName
+        const filetype = file[0].headers['content-type']
+        const readfileimage = fs.readFileSync(file[0].path)
+        image.filename = filename
+        image.filetype = filetype
+        image.keyid = v4()
+        image.quokeyid = quotationid
+        image.status = 0
+        image.filedata = readfileimage
+        image.code = code
+        imageData.push(image)
+        return imageData
+    }
+
 }

@@ -4,9 +4,8 @@ import { ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { NextFunction, Request, Response } from 'express';
 import { LocalAuthGuard } from 'src/auth/local-auth/local-auth.guard';
 import { PReqUser } from './dto/p-req-user.dto';
-// import { LocalAuthGuard } from 'src/auth/local.auth.guard';
-
-
+import { PReqForgetpassword } from './dto/p-req-forgetpassword';
+import { PReqResetpassword } from './dto/p-req-resetpassword';
 @ApiTags('User')
 @Controller('user')
 export class UserController {
@@ -32,5 +31,20 @@ export class UserController {
     @Post('auth/login')
     async login(@Req() req: Request, @Res() res: Response) {
         return this.userService.validlogin(req, res)
+    }
+
+
+    @UseGuards(LocalAuthGuard)
+    @ApiBody({ type: PReqForgetpassword })
+    @Post('/forgetpassword')
+    async forgetpassword(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
+        return this.userService.forgetpassword(req, res, next)
+    }
+
+    @UseGuards(LocalAuthGuard)
+    @ApiBody({ type: PReqResetpassword })
+    @Post('/resetpassword')
+    async resetpassword(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
+        return this.userService.resetpassword(req, res, next)
     }
 }

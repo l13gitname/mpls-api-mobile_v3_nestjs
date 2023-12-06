@@ -13,7 +13,7 @@ async function bootstrap() {
   app.enableCors({
     origin: 'http://localhost:4200',
   });
-  
+
   app.setGlobalPrefix('api')
 
   const config = new DocumentBuilder()
@@ -37,7 +37,14 @@ async function bootstrap() {
     .build()
 
   const document = SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('api-docs', app, document)
+  // Set up binary handling in Swagger
+  SwaggerModule.setup('api-docs', app, document, {
+    swaggerOptions: {
+      defaultModelExpandDepth: -1, // Disable model expansion for binary data
+    },
+    customSiteTitle: 'Your API Documentation',
+    // Add more options if needed
+  });
   await app.listen(configservice.get('API_PORT'));
 }
 bootstrap();

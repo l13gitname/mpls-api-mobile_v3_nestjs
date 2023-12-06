@@ -1,7 +1,7 @@
 import { QuotationService } from './quotation.service';
 import { Body, Controller, Get, Next, Post, Req, Res, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from '../decorator/user.decorator';
 import { IResUserToken } from 'src/interface/i-res-user-token.interface';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
@@ -19,6 +19,8 @@ import { PReqMplsCreateOrUpdateCredit } from './dto/p-req-mpls_create_or_update_
 import { PReqMplsCheckApplicationNo } from './dto/p-req-mpls_check_application_no.dto';
 import { PReqMplsValidationOtpEconsentNon } from './dto/p-req-mpls_validation_otp_econsent_non.dto';
 import { PReqMplsCreateConsent } from './dto/p-req-mpls_create_consent.dto';
+import { PReqGetinsurancedetailbyid } from './dto/p-req-getinsurancedetailbyid';
+import { PReqBypasssignature } from './dto/p-req-bypasssignature';
 
 @ApiTags('Quotation')
 @Controller('quotation')
@@ -51,6 +53,18 @@ export class QuotationController {
 
     @Post('/getquotationbyid')
     @ApiBody({ type: PReqGetquotationbyid })
+    @ApiResponse({
+        status: 200,
+        description: 'Return Blob file (Can`t work in swagger cause of huge sige of array blob return)',
+        content: {
+            'application/octet-stream': {
+                schema: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
     async getquotationbyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
         return this.quotationService.getquotationbyid(req, user, res, next)
     }
@@ -119,7 +133,7 @@ export class QuotationController {
     })
     @Post('/MPLS_check_application_no')
     async MPLS_check_application_no(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
-
+        return this.quotationService.MPLS_check_application_no(req, user, res, next)
     }
 
     @Get('/MPLS_getservertime')
@@ -149,10 +163,50 @@ export class QuotationController {
         type: PReqMplsCreateConsent,
     })
     @Post('/MPLS_create_consent')
-    async MPLS_create_consent(@UploadedFiles() files: Array<Express.Multer.File> , @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+    async MPLS_create_consent(@UploadedFiles() files: Array<Express.Multer.File>, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
         return this.quotationService.MPLS_create_consent(files, req, user, res, next)
     }
 
+    /* ... ciz-card-tab ...*/
 
+    /* ... No Have ...*/
+
+    /* ... product-detail ....*/
+
+    /* ... No Have ...*/
+
+    /* ... career and purpose ...*/
+
+    /* ... No Have ...*/
+
+    /* ... image-attach ... */
+
+    /* ... No Have ... */
+
+    /* ... signature (consent) ... */
+
+    /* ... No Have ... */
+
+    /* ... Send-Car ... */
+
+    @Get('/getinsurancedetailbyid')
+    @ApiQuery({
+        type: PReqGetinsurancedetailbyid
+    })
+    async getinsurancedetailbyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+    }
+
+    /* ... bypass-signature ... */
+
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'quotationid, customersig_image (pic), witnesssig_image (pic)',
+        type: PReqBypasssignature,
+    })
+    @Post('/bypasssignature')
+    async bypasssignature(@UploadedFiles() files: Array<Express.Multer.File>, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        return this.quotationService.bypasssignature(files, req, user, res, next)
+    }
 
 }

@@ -237,7 +237,9 @@ export interface IResGetquotationbyidData {
     hrp_postal_code: string;
     ciz_gender: number;
     dipchip_uuid: string;
+    // cizcard_image: any[];
     cizcard_image: any[];
+    econsent_image: any[];
     // === add new 6 fild (maire status, nick name, stay month, stay year , house type , house owner type ) (15/11/2022) ===
     ciz_nickname: string;
     ciz_house_type: number;

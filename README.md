@@ -32,6 +32,53 @@
 $ npm install
 ```
 
+## Installation (IIS)
+
+1. run 
+```bash
+npm run build:prod
+```
+2. copy file ใน folder dist ไปวางไว้ใน iis directory
+3. สร้างไฟล์ web.config 
+```bash
+<configuration>
+  <system.webServer>    
+    <rewrite>
+      <rules>
+        <rule name="myapp">
+          <match url="/*" />
+          <action type="Rewrite" url="main.js" />
+        </rule>
+      </rules>
+    </rewrite>
+
+    <iisnode node_env="production" nodeProcessCommandLine="&quot;C:\Program Files\nodejs\node.exe&quot;" interceptor="&quot;%programfiles%\iisnode\interceptor.js&quot;" />
+
+  </system.webServer>
+    <location path="" overrideMode="Deny">
+        <system.webServer>
+    <handlers>
+      <add name="iisnode" path="main.js" verb="*" modules="iisnode" />
+    </handlers>
+        </system.webServer>
+    </location>
+</configuration>
+```
+4. นำไฟล์ web.config ไปวางไว้ใน path directory iis (ที่เดียวกับไฟล์ในข้อ 2.)
+5. กำหนดค่า environment โดยแปลง code จาก .env หรือ environment ที่เลือกใช้ ในรูปแบบ xml tag แล้วนำไปใส่ใน file web.config ตามตัวอย่างด้านล่าง
+   ```bash
+     <configuration>
+        ...
+      <appSettings>
+        <add key="ENV_PATH" value="..." />
+        <add key="JWT_KEY" value="..." />
+        <add key="DB_HOST" value="..." />
+        ...
+      </appSettings>
+    </configuration>
+   ```
+6. ตรวจเช็คการให้สิทธิ์ในการ read/write ไฟล์ใน folder directory iis โดยให้สิทธิ์ IIS_USER 
+
 ## Running the app
 
 ```bash
