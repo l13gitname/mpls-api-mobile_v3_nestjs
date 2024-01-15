@@ -14,6 +14,10 @@ import { PReqCheckmrtarecent } from './dto/p-req-checkmrtarecent';
 import { PReqGetmastermrtainsurance } from './dto/p-req-getmastermrtainsurance';
 import { PReqGenmrtaqr } from './dto/p-req-genmrtaqr';
 import { PReqConfirmqrpayment } from './dto/p-req-confirmqrpayment';
+import { PReqSearchmrta } from './dto/p-req-searchmrta';
+import { PReqMrtainfobyid } from './dto/p-req-mrtainfobyid';
+import { PReqMastermrta } from './dto/p-req-mastermrta';
+import { PReqCalculatemrtaage } from './dto/p-req-calculatemrtaage';
 
 
 @Controller('mrta')
@@ -71,7 +75,25 @@ export class MrtaController {
     })
     @Post('/getmastermrtainsurance')
     async getmastermrtainsurance(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        return this.mrtaservice.getmastermrtainsurance(req, user, res, next)
+    }
 
+    /* ... app-mrta-product (product-detail , send-car , mrta-info) ... */
+    @ApiBody({
+        type: PReqMastermrta
+    })
+    @Post('/mastermrta')
+    async mastermrta(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        return this.mrtaservice.mastermrta(req, user, res, next)
+    }
+
+    /* ... app-mrta-product (product-detail , send-car , mrta-info) ... */
+    @ApiBody({
+        type: PReqCalculatemrtaage
+    })
+    @Post('/calculatemrtaage')
+    async calculatemrtaage(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        return this.mrtaservice.calculatemrtaage(req, user, res, next)
     }
 
     /* ... send-car ==> app-qr-barcode-mrta, mrta-info ==> app-qr-barcode-mrta ... */
@@ -80,7 +102,7 @@ export class MrtaController {
     })
     @Post('/genmrtaqr')
     async genmrtaqr(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
-
+        this.mrtaservice.genmrtaqr(req, user, res, next)
     }
 
     /* ... send-car ==> app-qr-barcode-mrta ... */
@@ -89,7 +111,7 @@ export class MrtaController {
     })
     @Post('/confirmqrpayment')
     async confirmqrpayment(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
-
+        this.mrtaservice.confirmqrpayment(req, user, res, next)
     }
 
     /* ... send-car ==> app-advance-payment-qr-code ... */
@@ -108,6 +130,23 @@ export class MrtaController {
     @Post('/gentotallossqrpayment')
     async gentotallossqrpayment(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
         this.mrtaservice.gentotallossqrpayment(req, user, res, next)
+    }
+
+    /* ... header ==> mrta-list (dialog) ... */
+    @ApiBody({
+        type: PReqSearchmrta
+    })
+    @Post('/searchmrta')
+    async searchmrta(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        this.mrtaservice.searchmrta(req, user, res, next)
+    }
+
+    @ApiBody({
+        type: PReqMrtainfobyid
+    })
+    @Post('/mrtainfobyid')
+    async mrtainfobyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        this.mrtaservice.mrtainfobyid(req, user, res, next)
     }
 
 }

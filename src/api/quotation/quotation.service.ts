@@ -707,6 +707,7 @@ export class QuotationService {
                                     CD.REG_MILE AS CD_REG_MILE,
                                     CD.PROV_CODE AS CD_PROV_CODE,
                                     CD.PROV_NAME AS CD_PROV_NAME,
+                                    CD.MOTOR_NUMBER AS CD_MOTOR_NUMBER,
                                     CR.APP_KEY_ID AS CR_APP_KEY_ID,
                                     CR.MAIN_CAREER_NAME AS CR_MAIN_CAREER_NAME,
                                     CR.MAIN_CAREER_CODE AS CR_MAIN_CAREER_CODE,

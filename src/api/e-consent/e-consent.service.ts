@@ -21,6 +21,9 @@ import { IReqMplsUpdateFlagImageAttachFile } from 'src/interface/e-consent/MPLS_
 import { IExecCheckvalidimagetypeexec } from 'src/interface/e-consent/MPLS_update_flag_image_attach_file/i-exec-checkvalidimagetypeexec.interface';
 import { IReqMplsUpdateFlagImageAttachFileMultiple } from 'src/interface/e-consent/MPLS_update_flag_image_attach_file_multiple/i-req-mpls_update_flag_image_attach_file_multiple';
 import { IExecCheckvalidimagetypemultipleexec } from 'src/interface/e-consent/MPLS_update_flag_image_attach_file_multiple/i-exec-checkvalidimagetypemultipleexec';
+import { IReqMplsGetimageMultipleFilebyappid } from 'src/interface/e-consent/MPLS_getimage_multiple_filebyappid/i-req-mpls_getimage_multiple_filebyappid';
+import { IExecResultkeyapp } from 'src/interface/e-consent/MPLS_getimage_multiple_filebyappid/i-exec-resultkeyapp.interface';
+import { IResImageAttachMultipleByAppidData } from 'src/interface/e-consent/MPLS_getimage_multiple_filebyappid/i-res-mpls_getimage_multiple_filebyappid';
 
 @Injectable()
 export class EConsentService {
@@ -1373,6 +1376,136 @@ export class EConsentService {
                         })
                     }
 
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
+    /* ... view-car-attach page ... */
+
+    async MPLS_getimage_multiple_filebyappid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = JSON.parse(req.body) as IReqMplsGetimageMultipleFilebyappid
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    const resultkeyappexec = await dbconnect[0].execute(
+                        `
+                            SELECT QUO_KEY_APP_ID FROM MPLS_QUOTATION
+                            WHERE APPLICATION_NUM = :APPLICATION_NUM
+                        `,
+                        {
+                            quotationid: reqData.applicationid
+                        },
+                        {
+                            outFormat: 4002,
+                        })
+
+                    if (resultkeyappexec.rows.length == 1) {
+
+                        // let resQueryresult = resultkeyapp
+                        // let resData = resQueryresult.rows as any[]
+                        // const lowerResData = this.utilService.loopObjtolowerkey(resData) as any[]
+
+
+                        // try {
+                        //     /*.... finish ...*/
+                        //     return res.status(200).json({
+                        //         status: 200,
+                        //         message: `success`,
+                        //         data: lowerResData
+                        //     })
+                        //     // === api process finish (success) === 
+                        // } catch (e) {
+                        //     return res.status(200).send({
+                        //         status: 500,
+                        //         message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                        //         data: []
+                        //     })
+                        // }
+
+                        /* ... set quotaitonid from result ... */
+                        const resultkeyapp = this.utilService.toLowerKeys(resultkeyappexec.rows[0]) as IExecResultkeyapp
+                        const quoid = resultkeyapp.quo_key_app_id
+
+                        const secondhandcarimageexecbyidexec = await dbconnect[0].execute(
+                            `
+                                SELECT FS.IMAGE_NAME, FS.IMAGE_TYPE, FS.IMAGE_CODE, FS.IMAGE_FILE , FS.APP_KEY_ID AS IMAGE_ID , MS.IMAGE_HEADER
+                                FROM MPLS_IMAGE_FILE FS
+                                LEFT JOIN MPLS_MASTER_IMAGE_P MS
+                                ON FS.IMAGE_CODE = MS.IMAGE_CODE
+                                WHERE ACTIVE_STATUS = 'Y'
+                                AND FS.IMGF_QUO_APP_KEY_ID = :IMGF_QUO_APP_KEY_ID
+                                AND FS.IMAGE_CODE IN ('12')
+                                ORDER BY CREATED_TIME DESC
+                            `,
+                            {
+                                IMGF_QUO_APP_KEY_ID: quoid
+                            },
+                            {
+                                outFormat: 4002
+                            })
+
+                        const resData = secondhandcarimageexecbyidexec.rows
+                        const lowerResData = this.utilService.loopObjtolowerkey(resData) as [IResImageAttachMultipleByAppidData]
+                        let returnData = new Object as IResMplsGetimagefilebyid
+                        returnData.data = lowerResData
+                        returnData.status = 200
+                        returnData.message = `success`
+
+                        return res.status(200).send(returnData)
+
+                        /* ... Finish ... */
+                    } else {
+
+                        return res.status(200).send({
+                            status: 500,
+                            message: `ไม่สามารถระบุรายการใบคำขอได้ ( rows : ${resultkeyappexec.rows.length})`,
+                            data: []
+                        })
+
+                    }
                 } else {
                     if (dbconnect[1]) {
                         const errRes = dbconnect[1]

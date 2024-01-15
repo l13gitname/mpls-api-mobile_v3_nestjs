@@ -20,6 +20,8 @@ import { CalculateModule } from './api/calculate/calculate.module';
 import { MrtaModule } from './api/mrta/mrta.module';
 import { ApproveDeliverModule } from './api/approve-deliver/approve-deliver.module';
 import { SmsModule } from './api/sms/sms.module';
+import { ViewsignModule } from './api/viewsign/viewsign.module';
+import { PermissionModule } from './api/permission/permission.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { SmsModule } from './api/sms/sms.module';
     ApproveDeliverModule,
     CalculateModule,
     MrtaModule,
+    ViewsignModule,
+    PermissionModule,
     SmsModule,
     SandboxModule
   ],
@@ -53,6 +57,8 @@ import { SmsModule } from './api/sms/sms.module';
     ApproveDeliverModule,
     CalculateModule,
     MrtaModule,
+    ViewsignModule,
+    PermissionModule,
     SmsModule,
     SandboxService
   ],

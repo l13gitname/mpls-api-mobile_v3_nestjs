@@ -28,9 +28,11 @@ export class CalculateController {
         return this.calculateService.calculateage_db(req, user, res, next)
     }
 
+    /* ... quotation-detail-page ==> ciz-card-tab , mrta-info ... */
     @ApiQuery({ name: 'birthdate', type: 'string', description: 'Birthdate String', example: '18/4/1994' })
     @Get('/getagefrombirthdate')
     async getagefrombirthdate(@Query('birthdate') birthdateparam: string, @Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
         return this.calculateService.getagefrombirthdate(birthdateparam, req, user, res, next)
     }
+
 }

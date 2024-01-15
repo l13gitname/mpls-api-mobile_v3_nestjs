@@ -6,8 +6,9 @@ import { IResUserToken } from 'src/interface/i-res-user-token.interface';
 import { Request, Response, NextFunction } from 'express';
 import * as oracledb from 'oracledb';
 import { createCanvas, CanvasRenderingContext2D, Image, Canvas } from 'canvas';
-import qrcode from 'qrcode'
-import JsBarcode from 'jsbarcode';
+import * as qrcode from 'qrcode'
+// import JsBarcode from 'jsbarcode';
+import * as JsBarcode from 'JsBarcode'
 import { IReqSaveqrpayment } from 'src/interface/mrta/saveqrpayment/i-req-saveqrpayment';
 import { IExecResultRefpay } from 'src/interface/mrta/saveqrpayment/i-exec-result-refpay.interface';
 import { IExecResutlcheckquotation } from 'src/interface/mrta/saveqrpayment/i-exec-resutlcheckquotation';
@@ -27,6 +28,16 @@ import { IExecPaymentrecord } from 'src/interface/mrta/confirmqrpayment/i-exec-p
 import { IExecXcustmappingterm } from 'src/interface/mrta/confirmqrpayment/i-exec-xcustmappingterm.interface';
 import { IExecUpdatepaymentstatus } from 'src/interface/mrta/confirmqrpayment/i-exec-updatepaymentstatus.interface';
 import { IResConfirmqrpayment, IResConfirmqrpaymentData } from 'src/interface/mrta/confirmqrpayment/i-res-confirmqrpayment.interface';
+import { IReqSearchmrta } from 'src/interface/mrta/searchmrta/i-req-searchmrta';
+import { IExecMrtacount } from 'src/interface/mrta/searchmrta/i-exec-mrtacount';
+import { IResSearchmrta, IResSearchmrtaData } from 'src/interface/mrta/searchmrta/i-res-searchmrta';
+import { IResGentotallossqrpayment, IResGentotallossqrpaymentData } from 'src/interface/mrta/gentotallossqrpayment/i-res-gentotallossqrpayment';
+import { IReqMrtainfobyid } from 'src/interface/mrta/mrtainfobyid/i-req-mrtainfobyid';
+import { IResMrtainfobyid, IResMrtainfobyidData } from 'src/interface/mrta/mrtainfobyid/i-res-mrtainfobyid.interface';
+import { IReqMastermrta } from 'src/interface/mrta/mastermrta/i-req-mastermrta.interface';
+import { IResMastermrta, IResMastermrtaData } from 'src/interface/mrta/mastermrta/i-res-mastermrta.interface';
+import { IReqCalculatemrtaage } from 'src/interface/mrta/calculatemrtaage/i-req-calculatemrtaage';
+import { IResCalculatemrtaageData } from 'src/interface/mrta/calculatemrtaage/i-res-calculatemrtaage';
 
 @Injectable()
 export class MrtaService {
@@ -77,7 +88,7 @@ export class MrtaService {
 
                         try {
                             /*.... finish ...*/
-                            return res.status(200).json({
+                            return res.status(200).send({
                                 status: 200,
                                 message: `success`,
                                 data: lowerResData
@@ -139,7 +150,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqSaveqrpayment
+            const reqData = req.body as IReqSaveqrpayment
 
             if (dbconnect) {
 
@@ -178,10 +189,12 @@ export class MrtaService {
                                 const refpay = resData.ref_pay_num
                                 const billerid = process.env.BILLER_ID
                                 let char13 = String.fromCharCode(13)
-                                const bilpaymentformat = `${billerid}${char13}20${refpay}${char13}${char13}${reqData.premium_mrta}00`;
+                                const billpaymentformat = `${billerid}${char13}20${refpay}${char13}${char13}${reqData.premium_mrta}00`;
 
-                                var canvas = new canvas.Canvas();
-                                JsBarcode(canvas, bilpaymentformat, {
+                                const width = 800;
+                                const height = 600;
+                                const canvas: Canvas = createCanvas(width, height)
+                                JsBarcode(canvas, billpaymentformat, {
                                     width: 1,
                                     height: 50,
                                     fontSize: 10,
@@ -189,7 +202,7 @@ export class MrtaService {
                                     margin: 0
                                 });
 
-                                const resultimgqr = await qrcode.toBuffer(bilpaymentformat, {
+                                const resultimgqr = await qrcode.toBuffer(billpaymentformat, {
                                     margin: 0,
                                     type: 'png',
                                     scale: 5
@@ -227,10 +240,10 @@ export class MrtaService {
 
                                             if (!mrtarecent) {
                                                 // === insert ===
-                                                await this.insertMRTARecord(dbconnect[0], userid, reqData, res, bilpaymentformat, resData, canvas, resultimgqr);
+                                                await this.insertMRTARecord(dbconnect[0], userid, reqData, res, billpaymentformat, resData, canvas, resultimgqr);
                                             } else {
                                                 // === update ===
-                                                await this.updateMRTARecord(dbconnect[0], userid, reqData, res, bilpaymentformat, resData, canvas, resultimgqr);
+                                                await this.updateMRTARecord(dbconnect[0], userid, reqData, res, billpaymentformat, resData, canvas, resultimgqr);
                                             }
                                         } else {
                                             return this.handleError(res, 500, 'QR Code payment is already pay');
@@ -316,7 +329,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqGetdealersignimage
+            const reqData = req.body as IReqGetdealersignimage
 
             if (dbconnect) {
 
@@ -433,7 +446,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqCheckmrtarecent
+            const reqData = req.body as IReqCheckmrtarecent
 
             if (dbconnect) {
 
@@ -586,7 +599,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqGetmastermrtainsurance
+            const reqData = req.body as IReqGetmastermrtainsurance
 
             if (dbconnect) {
 
@@ -619,7 +632,7 @@ export class MrtaService {
 
                         try {
 
-                            return res.status(200).json({
+                            return res.status(200).send({
                                 status: 200,
                                 message: `Success`,
                                 data: lowerResData
@@ -682,6 +695,224 @@ export class MrtaService {
         }
     }
 
+    /* ... app-mrta-product (product-detail , send-car , mrta-info) ... */
+
+    async mastermrta(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = req.body as IReqMastermrta
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    const resultmastermrtaexec = await dbconnect[0].execute(
+                        `
+                            SELECT A.INSURER_CODE  , B.INSURANCE_CODE  , C.PLAN 
+                            FROM X_INSURER_INFO A , X_INSURANCE B, BTW.X_INSURANCE_MRTA_DETAIL C
+                            WHERE A.INSURER_CODE = B.INSURER_CODE
+                            AND B.INSURANCE_CODE =C.INSURANCE_CODE
+                            AND A.CANCEL_STATUS = 'N'
+                            AND B.STATUS = 'Y'
+                            AND B.BUSINESS_CODE = :BUSI_CODE
+                            group by A.INSURER_CODE  , B.INSURANCE_CODE  , C.PLAN
+                            order by INSURER_CODE,INSURANCE_CODE
+                        `,
+                        {
+                            BUSI_CODE: reqData.busi_code
+                        },
+                        {
+                            outFormat: 4002,
+                        })
+
+                    if (resultmastermrtaexec.rows.length !== 0) {
+
+                        try {
+
+                            const resultmastermrta = this.utilService.loopObjtolowerkey(resultmastermrtaexec.rows) as [IResMastermrtaData]
+                            let resObj = new Object as IResMastermrta
+                            resObj.status = 200
+                            resObj.message = `Success`
+                            resObj.data = resultmastermrta
+
+                            return res.status(200).send(resObj)
+
+                            /* ... Finish ... */
+
+                        } catch (e) {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                                data: []
+                            })
+                        }
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: 'No record found',
+                            data: []
+                        })
+                    }
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
+    /* ... app-mrta-product (product-detail , send-car , mrta-info) ... */
+    async calculatemrtaage(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = req.body as IReqCalculatemrtaage
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    /* ... check parameters ... */
+
+                    if (
+                        reqData.insur_code &&
+                        reqData.busi_code &&
+                        reqData.birth_date &&
+                        reqData.request_date
+                    ) {
+
+                        const resultcalcualtemrtaageexec = await dbconnect[0].execute(
+                            `
+                                SELECT BTW.PKG_BUY_MRTA.GET_AGE_CUST(:INSUR_CODE ,:BUSI_CODE ,TRUNC(BTW.BUDDHIST_TO_CHRIS_F(to_date(:BIRTH_DATE, 'dd/mm/yyyy'))), TRUNC(BTW.BUDDHIST_TO_CHRIS_F(to_date(:REQUEST_DATE, 'dd/mm/yyyy')))) AS MRTA_AGE FROM DUAL
+                            `,
+                            {
+                                INSUR_CODE: reqData.insur_code,
+                                BUSI_CODE: reqData.busi_code,
+                                BIRTH_DATE: reqData.birth_date,
+                                REQUEST_DATE: reqData.request_date
+                            },
+                            {
+                                outFormat: 4002
+                            }
+                        )
+
+                        if (resultcalcualtemrtaageexec.rows.length !== 0) {
+
+                            try {
+
+                                const resultcalcualtemrtaage = this.utilService.toLowerKeys(resultcalcualtemrtaageexec.rows[0]) as IResCalculatemrtaageData
+                                return res.status(200).send({
+                                    status: 200,
+                                    message: `Success`,
+                                    data: resultcalcualtemrtaage
+                                })
+
+                                /* ... Finish ... */
+                            } catch (e) {
+                                return res.status(200).send({
+                                    status: 500,
+                                    mesage: `Fail to return data calcualte age : ${e.message ? e.message : `No return msg`}`,
+                                    data: []
+                                })
+                            }
+
+                        } else {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `Can't calculate age from parameter data`,
+                                data: []
+                            })
+                        }
+
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `missing parameter (` +
+                                `insur_code : ${reqData.insur_code ? `true` : `false`}, ` +
+                                `busi_code : ${reqData.busi_code ? `true` : `false`}, ` +
+                                `birth_date : ${reqData.birth_date ? `true` : `false`}, ` +
+                                `request_date : ${reqData.request_date ? `true` : `false`}, ` +
+                                `)`
+                        })
+                    }
+
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
     /* ... send-car ==> app-qr-barcode-mrta, mrta-info ==> app-qr-barcode-mrta ... */
     async genmrtaqr(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
@@ -690,7 +921,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqGenmrtaqr
+            const reqData = req.body as IReqGenmrtaqr
 
             if (dbconnect) {
 
@@ -713,7 +944,7 @@ export class MrtaService {
 
                         if (checkrefpaynumexec.rows.length == 1) {
 
-                            const checkrefpaynum = checkrefpaynumexec.rows[0] as IExecCheckrefpaynum
+                            const checkrefpaynum = this.utilService.toLowerKeys(checkrefpaynumexec.rows[0]) as IExecCheckrefpaynum
 
                             const refpaynumvalue = checkrefpaynum.ref_pay_num
 
@@ -727,9 +958,11 @@ export class MrtaService {
                                     const refpay = checkrefpaynum.ref_pay_num
                                     const billerid = process.env.BILLER_ID
                                     const char13 = String.fromCharCode(13)
-                                    const billpaymentformat = `${billerid}${char13}20${refpay}${char13}${reqData.premium_mrta}00`
+                                    const billpaymentformat = `${billerid}${char13}20${refpay}${char13}${char13}${reqData.premium_mrta}00`
 
-                                    var canvas = new canvas.Canvas()
+                                    const width = 800;
+                                    const height = 600;
+                                    const canvas: Canvas = createCanvas(width, height)
                                     JsBarcode(canvas, billpaymentformat, {
                                         width: 1,
                                         height: 50,
@@ -745,7 +978,7 @@ export class MrtaService {
                                     })
 
                                     let returnData = this.utilService.loopObjtolowerkey([resData])
-                                    returnData[0].image_file = [canvas.toBuffer("image/jpg"), resultimageqr]
+                                    returnData[0].image_file = [canvas.toBuffer("image/jpeg"), resultimageqr]
                                     returnData[0].bill_payment = billpaymentformat
 
                                     return res.status(200).send({
@@ -760,16 +993,6 @@ export class MrtaService {
                                     return res.status(200).send({
                                         status: 500,
                                         message: `can't bind image : ${e.message ? e.message : 'no return msg'}`,
-                                        data: []
-                                    })
-                                }
-
-                                try {
-
-                                } catch (e) {
-                                    return res.status(200).send({
-                                        status: 500,
-                                        mesage: `Fail to build QR image : ${e.message ? e.message : `no return msg`}`,
                                         data: []
                                     })
                                 }
@@ -851,7 +1074,7 @@ export class MrtaService {
             const userid = user.ID
             const radmin = user.admin_role
             const username = user.username
-            const reqData = JSON.parse(req.body) as IReqConfirmqrpayment
+            const reqData = req.body as IReqConfirmqrpayment
 
             if (dbconnect) {
 
@@ -1093,11 +1316,12 @@ export class MrtaService {
                     } else {
                         return res.status(200).send({
                             status: 500,
-                            messgae: `mission parameter \n
-                            ramin : ${radmin ? `true` : `false`} \n
-                            userid : ${userid ? `true` : `false`} \n
-                            username : ${username ? `true` : `false`} \n
-                            application_num : ${reqData.application_num ? `true` : `false`} \n`
+                            message: `Mission parameters (` +
+                                `Ramin : ${radmin ? 'true' : 'false'}` +
+                                `, UserID : ${userid ? 'true' : 'false'}` +
+                                `, Username : ${username ? 'true' : 'false'}` +
+                                `, Application Number : ${reqData.application_num ? 'true' : 'false'}` +
+                                `)`
                         })
                     }
 
@@ -1150,7 +1374,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqGenadvanceqrpayment
+            const reqData = req.body as IReqGenadvanceqrpayment
 
             if (dbconnect) {
 
@@ -1206,11 +1430,11 @@ export class MrtaService {
                                     const refpay = resData.ref_pay_num
                                     const billerid = process.env.BILLER_ID
                                     let char13 = String.fromCharCode(13)
-                                    const billpaymentformat = `${billerid}&${char13}02${refpay}${char13}0`
+                                    const billpaymentformat = `${billerid}${char13}02${refpay}${char13}${char13}0`
+
                                     const width = 800;
                                     const height = 600;
-
-                                    const canvas: Canvas = createCanvas(width, height);
+                                    const canvas: Canvas = createCanvas(width, height)
                                     JsBarcode(canvas, billpaymentformat, {
                                         width: 1,
                                         height: 50,
@@ -1230,9 +1454,14 @@ export class MrtaService {
                                     returnData[0].name = name
                                     returnData[0].sname = sname
 
+                                    /* .... for debug value of each image (barcode,qr)
+                                    var barcodebase64 = canvas.toDataURL("image/jpeg");
+                                    var qrcodebase64 = Buffer.from(resultimgqr).toString('base64')
+                                    */
+
                                     return res.status(200).send({
                                         status: 200,
-                                        message: `Success`,
+                                        message: 'Success',
                                         data: returnData
                                     })
 
@@ -1324,7 +1553,7 @@ export class MrtaService {
         try {
             const userid = user.ID
             const radmin = user.admin_role
-            const reqData = JSON.parse(req.body) as IReqGentotallossqrpayment
+            const reqData = req.body as IReqGentotallossqrpayment
 
             if (dbconnect) {
 
@@ -1333,6 +1562,100 @@ export class MrtaService {
                     /* ... check application_num paramter ... */
 
                     if (reqData.application_num) {
+
+                        const resultrefpaywithamountexec = await dbconnect[0].execute(
+                            `
+                                SELECT CME.REF_PAY_NUM, PIL.ITEM_PRICE, CI.NAME, CI.SNAME
+                                FROM BTW.X_CUST_MAPPING_EXT CME
+                                INNER JOIN BTW.X_PRODUCT_ITEM_LIST PIL
+                                ON CME.APPLICATION_NUM = PIL.APPLICATION_NUM
+                                AND CME.APPLICATION_NUM = :APPLICATION_NUM
+                                AND PIL.ITEM_CODE = '012'
+                                INNER JOIN BTW.X_CUST_MAPPING CM
+                                ON CME.APPLICATION_NUM = CM.APPLICATION_NUM
+                                INNER JOIN BTW.CUST_INFO CI
+                                ON CM.CUST_NO = CI.CUST_NO
+                            `,
+                            {
+                                APPLICATION_NUM: reqData.application_num
+                            },
+                            {
+                                outFormat: 4002
+                            })
+
+                        if (resultrefpaywithamountexec.rows.length == 1) {
+
+                            const resultrefpay = this.utilService.toLowerKeys(resultrefpaywithamountexec.rows[0]) as IResGentotallossqrpaymentData
+                            const refpayvalue = resultrefpay.ref_pay_num
+                            const itemprice = resultrefpay.item_price
+                            const name = resultrefpay.name
+                            const sname = resultrefpay.sname
+                            const billerid = process.env.BILLER_ID
+                            let char13 = String.fromCharCode(13)
+                            const billpaymentformat = `${billerid}${char13}08${refpayvalue}${char13}${char13}${itemprice}00`
+
+                            try {
+
+                                const width = 800;
+                                const height = 600;
+                                const canvas: Canvas = createCanvas(width, height);
+                                JsBarcode(canvas, billpaymentformat, {
+                                    width: 1,
+                                    height: 50,
+                                    fontSize: 10,
+                                    displayValue: false,
+                                    margin: 0
+                                })
+
+                                const resultimageqr = await qrcode.toBuffer(billpaymentformat, {
+                                    margin: 0,
+                                    type: 'png',
+                                    scale: 5
+                                })
+
+                                let resObj = new Object as IResGentotallossqrpayment
+                                let returnData = this.utilService.loopObjtolowerkey([resultrefpay]) as [IResGentotallossqrpaymentData]
+                                returnData[0].image_file = [canvas.toBuffer("image/jpeg"), resultimageqr]
+                                returnData[0].bill_payment = billpaymentformat
+                                returnData[0].item_price = itemprice
+                                returnData[0].name = name
+                                returnData[0].sname = sname
+                                resObj.message = `Success`
+                                resObj.status = 200
+                                resObj.data = returnData
+
+
+
+                                return res.status(200).send({
+                                    status: 200,
+                                    message: `Success`,
+                                    data: resObj
+                                })
+
+                                /* ... Finish ... */
+
+                            } catch (e) {
+                                return res.status(200).send({
+                                    status: 500,
+                                    mesage: `Can't bind canvas payment : ${e.message ? e.message : `No return msg`}`,
+                                    data: []
+                                })
+                            }
+
+                        } else if (resultrefpaywithamountexec.rows.length == 0) {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `ไม่พบเลข Reference Payment`,
+                                data: []
+                            })
+                        } else {
+                            /* ... multiple rows ... */
+                            return res.status(200).send({
+                                status: 500,
+                                message: `Can't Identity REF Payment (too many) , rowsAffected : ${resultrefpaywithamountexec.rows.length}`,
+                                data: []
+                            })
+                        }
 
                     } else {
                         return res.status(200).send({
@@ -1380,9 +1703,435 @@ export class MrtaService {
         }
     }
 
+    /* ... header ==> mrta-list (dialog) ... */
+    async searchmrta(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = req.body as IReqSearchmrta
+            const
+                {
+                    customername,
+                    customersname,
+                    idcardnum,
+                    application_no,
+                    contractno,
+                    pageno,
+                } = req.body as IReqSearchmrta
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    let { pageno } = req.body
+                    pageno = pageno ? pageno : 1
+
+                    const indexstart = (pageno - 1) * 5 + 1
+                    const indexend = (pageno * 5)
+                    let rowCount: number
+
+                    /* ... build condition and binding query ...*/
+                    let baseQuery: string = ''
+                    let bindData: { [key: string]: any } = {};
+
+                    let sqlcustomername: string = ''
+                    let sqlcustomersname: string = ''
+                    let sqlidcardnum: string = ''
+                    let sqlapplication_no: string = ''
+                    let sqlcontractno: string = ''
+
+                    let sqlchannal: string = ''
+                    let channalstamp: string = ''
+
+                    /*... customer name ...*/
+                    if (customername) {
+                        sqlcustomername = ` AND CUST_INFO.NAME LIKE :customername `
+                        bindData.customername = customername
+                    }
+
+                    /*... customer surname ...*/
+                    if (customersname) {
+                        sqlcustomersname = ` AND CUST_INFO.SNAME LIKE :customersname `
+                        bindData.customersname = `${customersname}%`
+                    }
+
+                    /*... id card ...*/
+                    if (idcardnum) {
+                        sqlidcardnum = ` AND CUST_INFO.IDCARD_NUM = :idcardnum `
+                        bindData.idcardnum = idcardnum
+                    }
+
+                    /*... Application Number ...*/
+                    if (application_no) {
+                        sqlapplication_no = ` AND APP_EXT.APPLICATION_NUM = :application_no `
+                        bindData.application_no = application_no
+                    }
+
+                    /* ...  Contract Number ...*/
+                    if (contractno) {
+                        sqlcontractno = ` AND APP_EXT.CONTRACT_NO = :contractno `
+                        bindData.contractno = contractno
+                    }
+
+                    /* .... set query ...*/
+                    baseQuery =
+                        ` 
+                        SELECT 
+                            ROWNUM AS SEQ_ITEM
+                            ,APP_EXT.APPLICATION_NUM
+                            ,BTW.GET_DL_BRANCH (APP_EXT.SL_CODE) AS DL_BRANCH
+                            ,(SELECT BRANCH_NAME
+                                FROM BRANCH_P
+                                WHERE BRANCH_CODE = BTW.GET_DL_BRANCH (APP_EXT.SL_CODE)) AS BRANCH_NAME
+                            ,APP_EXT.CONTRACT_NO
+                            ,TO_CHAR(APP_EXT.APPLICATION_DATE, 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS APPLICATION_DATE  --EX.05/06/2565
+                            ,TO_CHAR(APP_EXT.CREATE_CONTRACT_DATE, 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS CREATE_CONTRACT_DATE  --EX.05/06/2565
+                            ,CUST_INFO.CUST_NO
+                            ,TO_CHAR(BTW.BUDDHIST_TO_CHRIS_F(CUST_INFO.BIRTH_DATE),'DD/MM/YYYY','nls_calendar=''thai buddha'' nls_date_language=thai') AS BIRTH_DATE_TH
+                            ,BTW.BUDDHIST_TO_CHRIS_F(CUST_INFO.BIRTH_DATE) AS BIRTH_DATE
+                            ,CE.FAVORITE1 as sex --เพศ
+                            ,CUST_INFO.NAME AS FIRST_NAME
+                            ,CUST_INFO.SNAME AS LAST_NAME
+                            ,TITLE_P.TITLE_NAME||''||CUST_INFO.NAME||'  '||CUST_INFO.SNAME AS CUSTOMER_FULLNAME
+                            ,CUST_INFO.IDCARD_NUM
+                            ,BTW.func_GetCustAddr(APP_EXT.APPLICATION_NUM,CUST_INFO.CUST_NO,BTW.GET_ADDR_TYPE_ACTIVE_CUST(CUST_INFO.CUST_NO,'02')) AS ADDRESS1 --default ที่อยู่ตามบัตรประชาชน
+                            ,BTW.func_GetCustAddr(APP_EXT.APPLICATION_NUM,CUST_INFO.CUST_NO,'06') AS ADDRESS_LETTER --default ที่อยู่ส่งจดหมาย 06
+                            ,APP_EXT.SL_CODE
+                            ,DL.DL_FNAME||' '||DL.DL_NAME||' '||DL.DL_LNAME  AS DL_NAME  -- ชื่อดีลเลอร์
+                            ,UPPER(BTW.PKG_PRODUCT_DETAIL.GET_BRAND_NAME (APP_EXT.CONTRACT_NO)) AS MOTORCYCLE_BRANDS
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_MODEL_NAME (APP_EXT.CONTRACT_NO) AS MOTORCYCLE_MODELS
+                            ,BTW.GET_MODEL_YEAR(APP_EXT.CONTRACT_NO) AS MODEL_YEAR
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_CC (APP_EXT.CONTRACT_NO) AS MODEL_CC
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_COLOR (APP_EXT.CONTRACT_NO) AS COLORS
+                            ,TO_CHAR(APP_CONTRACT.FIRST_DUE , 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS FIRST_INSTALLMENT_PAID_DATE
+                            ,TO_CHAR(ADD_MONTHS(APP_CONTRACT.FIRST_DUE,APP_EXT.TERM-1), 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')   AS LAST_INSTALLMENT_PAID_DATE
+                            ,TO_CHAR(APP_EXT.MONTHLY, 'fm999g999g990d00') AS  MONTHLY_TXT  --ค่างวด
+                            ,APP_EXT.MONTHLY
+                            ,APP_EXT.TERM AS  PERIOD --จำนวนงวด
+                            ,TO_CHAR(BTW.PKG_MONTH_END.GET_OUT_STAND('N',APP_EXT.CONTRACT_NO,NULL,'BTW.'),'fm999g999g990d00')  as OUT_STAND_TXT --(9) out_stand ตั้งต้น  (ยอดกู้)
+                            ,BTW.PKG_MONTH_END.GET_OUT_STAND('N',APP_EXT.CONTRACT_NO,NULL,'BTW.') AS OUT_STAND
+                            ,TO_CHAR(APP_CONTRACT.DOWN, 'fm999g999g990d00')  as DOWN_PAYMENT_AMOUNT  --3
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_CHASIS (APP_EXT.CONTRACT_NO) AS CHASSIS_NUMBER
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_ENGI (APP_EXT.CONTRACT_NO) AS MACHINE_NUMBER
+                            ,TO_CHAR(APP_CONTRACT.FIRST_DUE , 'dd', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS DUE
+                            ,BTW.GET_VALUE_CUST_INFO_EXT(CUST_INFO.CUST_NO,'E_MAIL','BTW.') AS EMAIL 
+                            ,TRIM(BTW.PHONE_NO (CUST_INFO.CUST_NO,'SMS' )) AS SMS_NUMBER
+                            ,TRIM(BTW.PHONE_NO (CUST_INFO.CUST_NO,'MP' )) AS PHONE_NUMBER
+                            ,APP_EXT.CHECKER_CODE
+                            -- ,DECODE(BTW.GET_E_PAPER(APP_EXT.CONTRACT_NO),'Y','edoc','paper') AS CHANNEL_TYPE
+                            ,APP_EXT.REPORT_DATE
+                            ,APP_EXT.INSURANCE_YEARS
+                            ,APP_EXT.COVERAGE_TOTAL_LOSS  AS INSURANCE_T1_CASH                                           
+                            from BTW.X_CUST_MAPPING_EXT APP_EXT,BTW.X_CUST_MAPPING CUST_MAPP,BTW.X_SAMM_CONTRACT APP_CONTRACT,BTW.CUST_INFO,BTW.TITLE_P
+                            ,BTW.X_PRODUCT_DETAIL PD,X_DEALER_P DL,CUST_INFO_EXT  CE
+                            where APP_EXT.APPLICATION_NUM = CUST_MAPP.APPLICATION_NUM
+                            AND APP_EXT.APPLICATION_NUM = APP_CONTRACT.APPLICATION_NUM
+                            AND APP_EXT.APPLICATION_NUM = PD.APPLICATION_NUM
+                            AND CUST_MAPP.CUST_NO = CUST_INFO.CUST_NO
+                            AND CUST_INFO.FNAME = TITLE_P.TITLE_ID(+)
+                            AND APP_EXT.SL_CODE = DL.DL_CODE
+                            AND CUST_MAPP.CUST_NO = CE.CUST_NO(+)
+                            AND APP_EXT.loan_result='Y'
+                            AND CUST_MAPP.CUST_STATUS='0'
+                            AND PD.PRODUCT_CODE = '01'
+                            ${sqlcustomername}
+                            ${sqlcustomersname}
+                            ${sqlidcardnum}
+                            ${sqlapplication_no}
+                            ${sqlcontractno}
+                    `
+
+                    const mrtacount = `SELECT COUNT(APPLICATION_NUM) AS COUNT FROM (${baseQuery})`
+
+                    const mrtacountexec = await dbconnect[0].execute(
+                        mrtacount,
+                        bindData.length !== 0 ? bindData : {},
+                        { outFormat: 4002 }
+                    )
+
+                    if (mrtacountexec.rows.length == 0) {
+                        return res.status(200).send({
+                            status: 200,
+                            message: 'No record found',
+                            data: []
+                        })
+                    } else {
+
+                        let resQueryresult = this.utilService.loopObjtolowerkey(mrtacountexec.rows) as IExecMrtacount[]
+
+                        if (resQueryresult[0].count !== 0) {
+                            /* ... assign value to rowcount ...*/
+                            rowCount = resQueryresult[0].count
+
+                            try {
+
+                                /*... assign value about pagination ...*/
+                                bindData.indexstart = indexstart
+                                bindData.indexend = indexend
+
+                                /* ... execute value record list ...*/
+                                const resultlist = await dbconnect[0].execute(
+                                    ` SELECT * FROM (${baseQuery}) WHERE SEQ_ITEM BETWEEN :indexstart AND :indexend `,
+                                    bindData,
+                                    { outFormat: 4002 }
+                                )
+
+                                /* .... build data for return to client ...*/
+                                const recordlist = resultlist.rows as IResSearchmrtaData[]
+                                const lowerResData = this.utilService.loopObjtolowerkey(recordlist) as IResSearchmrtaData[]
+                                let returnData = new Object as IResSearchmrta
+                                returnData.data = lowerResData
+                                returnData.status = 200
+                                returnData.message = 'success'
+                                returnData.currentpage = Number(pageno)
+                                returnData.pagesize = 5
+                                returnData.rowcount = rowCount
+                                returnData.pagecount = Math.ceil(rowCount / 5);
+
+                                try {
+                                    /*.... Finish ... */
+                                    res.status(200).send(returnData);
+                                    /*... api process finish (success) ...*/
+                                } catch (e) {
+                                    return res.status(200).send({
+                                        status: 500,
+                                        message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                                        data: []
+                                    })
+                                }
+
+                            } catch (e) {
+                                return res.status(200).send({
+                                    status: 500,
+                                    message: `Error in stage sql get datalist : ${e.message ? e.message : `no msg return`}`,
+                                    data: []
+                                })
+                            }
+                        } else {
+
+                            return res.status(200).send({
+                                status: 200,
+                                message: 'No mrta list',
+                                data: []
+                            })
+
+                        }
+
+                    }
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
+    /* ... mrta-info ... */
+    async mrtainfobyid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+
+        req.headers['cache-control'] = 'no-cache' // === clear cache data ==
+        let dbconnect = await this.dbconnect.ConnectionDB()
+        try {
+            const userid = user.ID
+            const radmin = user.admin_role
+            const reqData = req.body as IReqMrtainfobyid
+
+            if (dbconnect) {
+
+                if (dbconnect[0]) {
+
+                    const resultmrtainfoexec = await dbconnect[0].execute(
+                        `
+                            SELECT 
+                            ROWNUM AS SEQ_ITEM
+                            ,NVL(QUO_KEY_APP_ID,APP_EXT.APPLICATION_NUM) AS QUO_KEY_APP_ID
+                            ,APP_EXT.APPLICATION_NUM
+                            ,BTW.GET_DL_BRANCH (APP_EXT.SL_CODE) AS DL_BRANCH
+                            ,(SELECT BRANCH_NAME
+                                FROM BRANCH_P
+                                WHERE BRANCH_CODE = BTW.GET_DL_BRANCH (APP_EXT.SL_CODE)) AS BRANCH_NAME
+                            ,APP_EXT.CONTRACT_NO
+                            ,TO_CHAR(APP_EXT.APPLICATION_DATE, 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS APPLICATION_DATE  --EX.05/06/2565
+                            ,TO_CHAR(APP_EXT.CREATE_CONTRACT_DATE, 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS CREATE_CONTRACT_DATE  --EX.05/06/2565
+                            ,CUST_INFO.CUST_NO
+                            ,TO_CHAR(BTW.BUDDHIST_TO_CHRIS_F(CUST_INFO.BIRTH_DATE),'DD/MM/YYYY','nls_calendar=''thai buddha'' nls_date_language=thai') AS BIRTH_DATE_TH
+                            ,BTW.BUDDHIST_TO_CHRIS_F(CUST_INFO.BIRTH_DATE) AS BIRTH_DATE
+                            ,CE.FAVORITE1 as sex --เพศ
+                            ,CUST_INFO.NAME AS FIRST_NAME
+                            ,CUST_INFO.SNAME AS LAST_NAME
+                            ,TITLE_P.TITLE_NAME||''||CUST_INFO.NAME||'  '||CUST_INFO.SNAME AS CUSTOMER_FULLNAME
+                            ,CUST_INFO.IDCARD_NUM
+                            ,BTW.func_GetCustAddr(APP_EXT.APPLICATION_NUM,CUST_INFO.CUST_NO,BTW.GET_ADDR_TYPE_ACTIVE_CUST(CUST_INFO.CUST_NO,'02')) AS ADDRESS1 --default ที่อยู่ตามบัตรประชาชน
+                            ,BTW.func_GetCustAddr(APP_EXT.APPLICATION_NUM,CUST_INFO.CUST_NO,'06') AS ADDRESS_LETTER --default ที่อยู่ส่งจดหมาย 06
+                            ,APP_EXT.SL_CODE
+                            ,DL.DL_FNAME||' '||DL.DL_NAME||' '||DL.DL_LNAME  AS DL_NAME  -- ชื่อดีลเลอร์
+                            --,UPPER(BTW.PKG_PRODUCT_DETAIL.GET_BRAND_NAME (APP_EXT.CONTRACT_NO)) AS MOTORCYCLE_BRANDs
+                            --,BTW.PKG_PRODUCT_DETAIL.GET_MODEL_NAME (APP_EXT.CONTRACT_NO) AS MOTORCYCLE_MODELS
+                            ,BD.BRAND_NAME AS MOTORCYCLE_BRANDS
+                            ,MD.MODEL  AS MOTORCYCLE_MODELS
+                            --,BTW.GET_MODEL_YEAR(APP_EXT.CONTRACT_NO) AS MODEL_YEAR
+                            ,MD.MODEL_YEAR
+                            ,MD.CC AS MODEL_CC
+                            --,BTW.PKG_PRODUCT_DETAIL.GET_CC (APP_EXT.CONTRACT_NO) AS MODEL_CC
+                            --,BTW.PKG_PRODUCT_DETAIL.GET_COLOR (APP_EXT.CONTRACT_NO) AS COLORS
+                            ,PD.COLOR AS COLORS
+                            ,TO_CHAR(APP_CONTRACT.FIRST_DUE , 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS FIRST_INSTALLMENT_PAID_DATE
+                            ,TO_CHAR(ADD_MONTHS(APP_CONTRACT.FIRST_DUE,APP_EXT.TERM-1), 'dd/mm/yyyy', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')   AS LAST_INSTALLMENT_PAID_DATE
+                            ,TO_CHAR(APP_EXT.MONTHLY, 'fm999g999g990d00') AS  MONTHLY_TXT  --ค่างวด
+                            ,APP_EXT.MONTHLY
+                            ,APP_EXT.TERM AS  PERIOD --จำนวนงวด
+                            --,TO_CHAR(BTW.PKG_MONTH_END.GET_OUT_STAND('N',APP_EXT.CONTRACT_NO,NULL,'BTW.'),'fm999g999g990d00')  as OUT_STAND_TXT --(9) out_stand ตั้งต้น  (ยอดกู้)
+                            ,DECODE(BTW.PKG_MONTH_END.GET_OUT_STAND('N',APP_EXT.CONTRACT_NO,NULL,'BTW.'), 0, APP_EXT.MONTHLY* APP_EXT.TERM, BTW.PKG_MONTH_END.GET_OUT_STAND('N',APP_EXT.CONTRACT_NO,NULL,'BTW.')) AS OUT_STAND
+                            ,TO_CHAR(APP_CONTRACT.DOWN, 'fm999g999g990d00')  as DOWN_PAYMENT_AMOUNT  --3
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_CHASIS (APP_EXT.CONTRACT_NO) AS CHASSIS_NUMBER
+                            ,BTW.PKG_PRODUCT_DETAIL.GET_ENGI (APP_EXT.CONTRACT_NO) AS MACHINE_NUMBER
+                            ,TO_CHAR(APP_CONTRACT.FIRST_DUE , 'dd', 'NLS_CALENDAR=''THAI BUDDHA'' NLS_DATE_LANGUAGE=THAI')  AS DUE
+                            ,BTW.GET_VALUE_CUST_INFO_EXT(CUST_INFO.CUST_NO,'E_MAIL','BTW.') AS EMAIL 
+                            ,TRIM(BTW.PHONE_NO (CUST_INFO.CUST_NO,'SMS' )) AS SMS_NUMBER
+                            ,TRIM(BTW.PHONE_NO (CUST_INFO.CUST_NO,'MP' )) AS PHONE_NUMBER
+                            ,APP_EXT.CHECKER_CODE
+                            -- ,DECODE(BTW.GET_E_PAPER(APP_EXT.CONTRACT_NO),'Y','edoc','paper') AS CHANNEL_TYPE
+                            ,APP_EXT.REPORT_DATE
+                            ,APP_EXT.INSURANCE_YEARS
+                            ,APP_EXT.COVERAGE_TOTAL_LOSS  AS INSURANCE_T1_CASH 
+                            ,APP_EXT.BUSSINESS_CODE 
+                            from BTW.X_CUST_MAPPING_EXT APP_EXT,BTW.X_CUST_MAPPING CUST_MAPP,BTW.X_SAMM_CONTRACT APP_CONTRACT,BTW.CUST_INFO,BTW.TITLE_P
+                            ,BTW.X_PRODUCT_DETAIL PD,X_DEALER_P DL,CUST_INFO_EXT  CE
+                            ,BTW.X_BRAND_P BD
+                            ,BTW.X_MODEL_P MD
+                            where APP_EXT.APPLICATION_NUM = CUST_MAPP.APPLICATION_NUM
+                            AND APP_EXT.APPLICATION_NUM = APP_CONTRACT.APPLICATION_NUM
+                            AND APP_EXT.APPLICATION_NUM = PD.APPLICATION_NUM
+                            AND CUST_MAPP.CUST_NO = CUST_INFO.CUST_NO
+                            AND CUST_INFO.FNAME = TITLE_P.TITLE_ID(+)
+                            AND APP_EXT.SL_CODE = DL.DL_CODE
+                            AND CUST_MAPP.CUST_NO = CE.CUST_NO(+)
+                            AND PD.BRAND_CODE = BD.BRAND_CODE
+                            AND PD.MODELCODE = MD.MODEL_CODE
+                            AND PD.BRAND_CODE  = MD.BRAND_CODE
+                            AND MD.PRO_CODE = '01'
+                            AND BD.PRO_CODE = '01'
+                            AND APP_EXT.loan_result='Y'
+                            AND CUST_MAPP.CUST_STATUS='0'
+                            AND PD.PRODUCT_CODE = '01'
+                            AND APP_EXT.APPLICATION_NUM = :application_num
+                        `,
+                        {
+                            application_num: reqData.application_num
+                        },
+                        {
+                            outFormat: 4002,
+                        })
+
+                    if (resultmrtainfoexec.rows.length !== 0) {
+
+
+                        try {
+
+                            const resultmrtainfo = this.utilService.loopObjtolowerkey(resultmrtainfoexec.rows) as [IResMrtainfobyidData]
+                            let resObj = new Object as IResMrtainfobyid
+                            resObj.status = 200
+                            resObj.message = `Success`
+                            resObj.data = resultmrtainfo
+
+                            return res.status(200).send(resObj)
+
+                            /* ... Finish ... */
+                        } catch (e) {
+                            return res.status(200).send({
+                                status: 500,
+                                message: `Error when try to retrun data : ${e.message ? e.message : `no msg return`}`,
+                                data: []
+                            })
+                        }
+
+                    } else {
+
+                        return res.status(200).send({
+                            status: 200,
+                            message: 'Not found record Mrta Info',
+                            data: []
+                        })
+
+                    }
+                } else {
+                    if (dbconnect[1]) {
+                        const errRes = dbconnect[1]
+                        return res.status(200).send({
+                            status: 500,
+                            message: `${errRes.message ? errRes.message : 'FAIL : No return msg form basicexe'}`,
+                            data: []
+                        })
+                    } else {
+                        return res.status(200).send({
+                            status: 500,
+                            message: `FAIL : no error return from oracle`,
+                            data: []
+                        })
+                    }
+                }
+            } else {
+                return res.status(200).send({
+                    status: 500,
+                    message: `FAIL : No return msg`,
+                    data: []
+                })
+            }
+        } catch (e) {
+            return res.status(200).send({
+                status: 500,
+                data: `Error with message : ${e.message ? e.message : `No message`}`
+            })
+        } finally {
+            if (dbconnect[0]) {
+                try {
+                    await dbconnect[0].close();
+                } catch (e) {
+                    return next(e);
+                }
+            }
+        }
+    }
+
+    /* ... 
+
     /* ..... self utility ..... */
 
-    async insertMRTARecord(dbconnect: oracledb.Connection, userid: string, req: IReqSaveqrpayment, res: Response, billpayment: string, execData: IExecResultRefpay, canvas: any, resultimgqr: any) {
+    async insertMRTARecord(dbconnect: oracledb.Connection, userid: string, req: IReqSaveqrpayment, res: Response, billpayment: string, execData: IExecResultRefpay, canvas: Canvas, resultimgqr: any) {
         /* ... this function is insert mrta record; call beneath saveqrpayment() ... */
         /* ... insert ... */
         try {

@@ -1,3 +1,5 @@
+getMaxLtv(get[calculateService]) => getmaxltv(post[masterdataService])
+
 MPLS_update_phone_number (get) => (post)
 MPLS_check_application_no (get) => (post)
 MPLS_validation_otp_econsent_non (get) => (post)
@@ -15,3 +17,12 @@ getmrtaseller(get[mrtaService]) =? getmrtaseller(get[masterdataService])
 genmrtaqr(get) => genmrtaqr(post)
 confirmqrpayment(get) => confirmqrpayment(post)
 sendsmsconfirmpayment(get) => sendsmsconfirmpayment(post)
+getviewsignimage(get) => viewsignimagebyid(post)
+verifyviewsignimage(get) => verifyviewsignimage(post)
+getpremrolemenu(get[btwService]) => checkrolemenu(get[permission]) ... checkmenuidpermission(client)
+getsearchmrta(get[btwService]) => searchmrta(post[mrtaService])
+getmrtainfo(get[btwService]) => mrtainfobyid(post[mrtaService])
+getMaxLtv(get[calculateService]) => calculatemaxltv(post[calculateService])
+getmrtamaster(post[mrtaService]) => mastermrta(post[mrtaService])
+getmrtaage(post[mrtaService]) => calculatemrtaage(post[mrtaService]) 
+ 

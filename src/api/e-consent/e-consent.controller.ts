@@ -14,6 +14,7 @@ import { PReqMplsCreateImageAttachFileMultiple } from './dto/p-req-mpls_create_i
 import { PReqMplsUpdateImageAttachFileMultiple } from './dto/p-req-mpls_update_image_attach_file_multiple';
 import { PReqMplsUpdateFlagImageAttachFile } from './dto/p-req-mpls_update_flag_image_attach_file';
 import { PReqMplsUpdateFlagImageAttachFileMultiple } from './dto/p-req-mpls_update_flag_image_attach_file_multiple';
+import { PReqMplsGetimageMultipleFilebyappid } from './dto/p-req-mpls_getimage_multiple_filebyappid';
 
 @ApiTags('E-consent')
 @Controller('e-consent')
@@ -98,6 +99,15 @@ export class EConsentController {
     })
     @Post('/MPLS_update_flag_image_attach_file_multiple')
     async MPLS_update_flag_image_attach_file_multiple(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
+        return this.econsentService.MPLS_update_flag_image_attach_file_multiple(req, user, res, next)
+    }
+
+    /* ... view-car-attach ... */
+    @ApiBody({
+        type: PReqMplsGetimageMultipleFilebyappid
+    })
+    @Post('/MPLS_getimage_multiple_filebyappid')
+    async MPLS_getimage_multiple_filebyappid(@Req() req: Request, @User() user: IResUserToken, @Res() res: Response, @Next() next: NextFunction) {
 
     }
 }
